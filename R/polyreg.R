@@ -31,7 +31,7 @@
 #' data(bmt)
 #' result <- polyreg(nuisance.model = Event(time, cause)~age+tcell, exposure = 'platelet',
 #' cens.model = Event(time,cause==0)~+1, data = bmt, effect.measure1='RR', effect.measure2='RR', time.point=24, outcome.type='COMPETINGRISK')
-#' msummary(result$out_summary, statistic = c("conf.int"), exponentiate = TRUE)lo
+#' msummary(result$out_summary, statistic = c("conf.int"), exponentiate = TRUE)
 polyreg <- function(
     nuisance.model,
     exposure,

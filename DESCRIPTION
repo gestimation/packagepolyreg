@@ -3,7 +3,7 @@ Title: Pacakge to test polyreg function
 Version: 0.0.0.9000
 Authors@R: 
     person("Shiro", "Tanaka", , "gestimation@gmail.com", role = c("aut", "cre"))
-Description: This is a package for test polyreg in a pacakge.
+Description: This is a package to test polyreg in a pacakge.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
