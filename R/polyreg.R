@@ -1,3 +1,37 @@
+#' @title Direct polynomial regression for survival and competing risks analysis
+#'
+#' @param nuisance.model formula Model formula representing outcome, exposure and covariates
+#' @param exposure character Column name representing the exposure (1 = exposed, 0 = not exposed).
+#' @param cens.model formula Model formula representing censoring and covariates
+#' @param data data.frame Input dataset containing survival data.
+#' @param effect.measure1 character Specifies the effect measure for event (RR, OR, SHR).
+#' @param effect.measure2 character Specifies the effect measure for competing risk (RR, OR, SHR).
+#' @param time.point numeric The time point(s) for analysis.
+#' @param outcome.type character Specifies the type of outcome (COMPETINGRISK or SURVIVAL).
+#' @param conf.level numeric The level for confidence intervals.
+#' @param outer.optim.method character Specifies the method of optimization (nleqslv, optim, multiroot).
+#' @param inner.optim.method character Specifies the method of optimization (nleqslv, optim, multiroot).
+#' @param optim.parameter1 numeric Convergence threshold for outer loop. Defaults to 1e-5.
+#' @param optim.parameter2 integer Maximum number of iterations. Defaults to 100.
+#' @param optim.parameter3 numeric
+#' @param optim.parameter4 numeric Constraint range for parameters. Defaults to 20.
+#' @param optim.parameter5 numeric Convergence threshold for optim in outer loop. Defaults to 1e-5.
+#' @param optim.parameter6 integer Maximum number of iterations for nleqslv/optim in outer loop. Defaults to 200.
+#' @param optim.parameter7 numeric Convergence threshold for optim in inner loop. Defaults to 1e-7.
+#' @param optim.parameter8 integer Maximum number of iterations for optim in inner loop. Defaults to 200.
+#' @param data.initlal.values data.frame Optional dataset containing initial values. Defaults to NULL.
+#' @param covariate.normalization logical Indicates whether covariates are normalized (TRUE = normalize, FALSE = otherwise). Defaults to TRUE.
+#' @param sort.data logical Indicates whether data are initially sorted to reduce computation steps (TRUE = sort, FALSE = otherwise). Defaults to TRUE.
+#' @param prob.bound numeric Small threshold for clamping probabilities. Defaults to 1e-5.
+#'
+#' @return A list of results from direct polynomial regression. summary meets requirement of msummary function.
+#' @export
+#'
+#' @examples
+#' data(bmt)
+#' result <- polyreg(nuisance.model = Event(time, cause)~age+tcell, exposure = 'platelet',
+#' cens.model = Event(time,cause==0)~+1, data = bmt, effect.measure1='RR', effect.measure2='RR', time.point=24, outcome.type='COMPETINGRISK')
+#' msummary(result$out_summary, statistic = c("conf.int"), exponentiate = TRUE)lo
 polyreg <- function(
     nuisance.model,
     exposure,
@@ -13,10 +47,10 @@ polyreg <- function(
     optim.parameter1 = 1e-5,
     optim.parameter2 = 100,
     optim.parameter3 = 1e-5, # Not used now
-    optim.parameter4 = 100,
+    optim.parameter4 = 20,
     optim.parameter5 = 1e-5,
     optim.parameter6 = 200,
-    optim.parameter7 = 1e-10,
+    optim.parameter7 = 1e-7,
     optim.parameter8 = 200,
     data.initlal.values = NULL,
     covariate.normalization = TRUE,
