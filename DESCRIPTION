@@ -1,11 +1,10 @@
 Package: packagepolyreg
-Title: Test polyreg in a Pacakge
+Title: Pacakge to test polyreg function
 Version: 0.0.0.9000
 Authors@R: 
     person("Shiro", "Tanaka", , "gestimation@gmail.com", role = c("aut", "cre"))
 Description: This is a package for test polyreg in a pacakge.
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
