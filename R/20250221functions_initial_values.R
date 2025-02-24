@@ -114,24 +114,6 @@ calc_initial_values <- function(
   return(out)
 }
 
-check_input <- function(epsilon, outcome.type, optim.method) {
-  if (!all(epsilon %in% c(0, 1, 2))) {
-    stop("Invalid event code. Must be 0, 1 or 2, with 0 representing censoring")
-  } else if (outcome.type == 'COMPETINGRISK' && all(epsilon %in% c(0, 1))) {
-    stop("Invalid event code. Expected both event code 1 and 2 with competing risks outcome")
-  } else if (outcome.type == 'SURVIVAL' && !all(epsilon %in% c(0, 1))) {
-    stop("Invalid event code. Must be 0 or 1, with 0 representing censoring")
-  }
-  if (outcome.type == "COMPETINGRISK" && !optim.method$outer.optim.method %in% c("nleqslv","Newton","Broyden","optim","BFGS","SANN","multiroot","partial")) {
-    stop("Invalid input for 'optimization'. Choose 'nleqslv', 'Newton', 'Broyden', 'optim', 'BFGS', 'SANN', 'multiroot' or 'partial'.")
-  }
-  if (outcome.type == "SURVIVAL" && optim.method$outer.optim.method == "partial") {
-    stop("Invalid input for 'optimization'. Choose 'nleqslv', 'Newton', 'Broyden', 'optim', 'BFGS', 'SANN' or 'multiroot'.")
-  }
-  if (!optim.method$inner.optim.method %in% c("optim","BFGS","SANN","multiroot")) {
-    stop("Invalid input for 'optimization'. Choose 'optim', 'BFGS', 'SANN' or 'multiroot'.")
-  }
-}
 
 calc_initial_1_competing_risk <- function(t, epsilon, a, l, estimand, specific.time, prob.bound) {
   epsilon00 <- epsilon[a == 0 & l == 0]
@@ -423,4 +405,45 @@ input_check <- function(outcome.type, time.point, conf.level) {
   }
   if (conf.level <= 0 || conf.level >= 1)
     stop("Confidence level must be between 0 and 1")
+}
+
+
+
+check_input <- function(epsilon, outcome.type, optim.method) {
+  if (!all(epsilon %in% c(0, 1, 2))) {
+    stop("Invalid event code. Must be 0, 1 or 2, with 0 representing censoring")
+  } else if (outcome.type == 'COMPETINGRISK' && all(epsilon %in% c(0, 1))) {
+    stop("Invalid event code. Expected both event code 1 and 2 with competing risks outcome")
+  } else if (outcome.type == 'SURVIVAL' && !all(epsilon %in% c(0, 1))) {
+    stop("Invalid event code. Must be 0 or 1, with 0 representing censoring")
+  }
+  if (outcome.type == "COMPETINGRISK" && !optim.method$outer.optim.method %in% c("nleqslv","Newton","Broyden","optim","BFGS","SANN","multiroot","partial")) {
+    stop("Invalid input for 'optimization'. Choose 'nleqslv', 'Newton', 'Broyden', 'optim', 'BFGS', 'SANN', 'multiroot' or 'partial'.")
+  }
+  if (outcome.type == "SURVIVAL" && optim.method$outer.optim.method == "partial") {
+    stop("Invalid input for 'optimization'. Choose 'nleqslv', 'Newton', 'Broyden', 'optim', 'BFGS', 'SANN' or 'multiroot'.")
+  }
+  if (!optim.method$inner.optim.method %in% c("optim","BFGS","SANN","multiroot")) {
+    stop("Invalid input for 'optimization'. Choose 'optim', 'BFGS', 'SANN' or 'multiroot'.")
+  }
+}
+
+
+check_input <- function(epsilon, outcome.type, optim.method) {
+  if (!all(epsilon %in% c(0, 1, 2))) {
+    stop("Invalid event code. Must be 0, 1 or 2, with 0 representing censoring")
+  } else if (outcome.type == 'COMPETINGRISK' && all(epsilon %in% c(0, 1))) {
+    stop("Invalid event code. Expected both event code 1 and 2 with competing risks outcome")
+  } else if (outcome.type == 'SURVIVAL' && !all(epsilon %in% c(0, 1))) {
+    stop("Invalid event code. Must be 0 or 1, with 0 representing censoring")
+  }
+  if (outcome.type == "COMPETINGRISK" && !optim.method$outer.optim.method %in% c("nleqslv","Newton","Broyden","optim","BFGS","SANN","multiroot","partial")) {
+    stop("Invalid input for 'optimization'. Choose 'nleqslv', 'Newton', 'Broyden', 'optim', 'BFGS', 'SANN', 'multiroot' or 'partial'.")
+  }
+  if (outcome.type == "SURVIVAL" && optim.method$outer.optim.method == "partial") {
+    stop("Invalid input for 'optimization'. Choose 'nleqslv', 'Newton', 'Broyden', 'optim', 'BFGS', 'SANN' or 'multiroot'.")
+  }
+  if (!optim.method$inner.optim.method %in% c("optim","BFGS","SANN","multiroot")) {
+    stop("Invalid input for 'optimization'. Choose 'optim', 'BFGS', 'SANN' or 'multiroot'.")
+  }
 }
