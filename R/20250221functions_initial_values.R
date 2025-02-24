@@ -22,51 +22,30 @@ calc_initial_values <- function(
   }
   if (!is.null(offsetpos <- attributes(Terms)$specials$offset)) {
     ts <- survival::untangle.specials(Terms, "offset")
-    Terms <- Terms[-ts$terms]
-    offset <- m[[ts$vars]]
+    if (length(ts$vars) > 0) {
+      Terms <- Terms[-ts$terms]
+      offset <- mf[[ts$vars]]
+    } else {
+      offset <- rep(0, nrow(mf))
+    }
   } else {
-    offset <- rep(0, length(t))
+    offset <- rep(0, nrow(mf))
   }
   if (!nrow(data) == nrow(mf))
     stop("Variables contain NA values")
   if (any(is.na(data[[exposure]])))
     stop("Variables contain NA values")
-  y_0 <- ifelse(epsilon == 0 | t > specific.time, 1, 0)
-  y_1 <- ifelse(epsilon == 1 & t <= specific.time, 1, 0)
-  y_2 <- ifelse(epsilon == 2 & t <= specific.time, 1, 0)
-
-  y_0_ <- ifelse(epsilon == 0, 1, 0)
-  y_1_ <- ifelse(epsilon == 1, 1, 0)
-  y_2_ <- ifelse(epsilon == 2, 1, 0)
 
   a_ <- as.factor(data[[exposure]])
   a <- model.matrix(~ a_)[, 2]
-  epsilon0 <- epsilon[a == 0]
-  epsilon1 <- epsilon[a == 1]
-
   x_l <- model.matrix(Terms, mf)
   n_para_1 <- ncol(x_l)
-  n_para_2 <- n_para_1 + 1
-  n_para_3 <- n_para_1 + 2
-  n_para_4 <- 2*n_para_1 + 1
-  n_para_5 <- 2*n_para_1 + 2
-  one <- rep(1, nrow(x_l))
-
-  tmp <- cbind(x_l, a)
-  zero <- matrix(0, nrow=nrow(tmp), ncol=ncol(tmp))
-  tmp1 <- cbind(tmp, zero)
-  tmp2 <- cbind(zero, tmp)
-  x_la <- rbind(tmp1, tmp2) # d used for calculation of score
 
   if (!is.null(data.initlal.values)) {
     x_l <- model.matrix(Terms, mf)
     if (!(1+ncol(x_l))*2 == length(data.initlal.values))
       stop("Invalid initial value dataset. Must contain the same number of initial values as parameters")
-    out <- list(init_vals = data.initlal.values,
-                y_0=y_0, y_1=y_1, y_2=y_2,
-                y_0_=y_0_, y_1_=y_1_, y_2_=y_2_,
-                a=a, t=t, epsilon=epsilon, epsilon0=epsilon0, epsilon1=epsilon1, x_l=x_l, x_la=x_la, offset=offset,
-                n_para_1=n_para_1, n_para_2=n_para_2, n_para_3=n_para_3, n_para_4=n_para_4, n_para_5=n_para_5, one=one)
+    out <- list(init_vals = data.initlal.values)
     return(out)
   }
 
@@ -131,11 +110,7 @@ calc_initial_values <- function(
       init_vals <- calc_initial_2_competing_risk(t, epsilon, a, estimand, specific.time, prob.bound)
     }
   }
-  out <- list(init_vals = init_vals,
-              y_0=y_0, y_1=y_1, y_2=y_2,
-              y_0_=y_0_, y_1_=y_1_, y_2_=y_2_,
-              a=a, t=t, epsilon=epsilon, epsilon0=epsilon0, epsilon1=epsilon1, x_l=x_l, x_la=x_la, offset=offset,
-              n_para_1=n_para_1, n_para_2=n_para_2, n_para_3=n_para_3, n_para_4=n_para_4, n_para_5=n_para_5, one=one)
+  out <- list(init_vals = init_vals)
   return(out)
 }
 
@@ -408,3 +383,44 @@ sort_by_covariate <- function(formula, data, sort.data, n_covariate) {
   }
 }
 
+spell_check <- function(outcome.type, effect.measure1, effect.measure2) {
+  if (outcome.type %in% c("COMPETINGRISK", "C", "CR", "COMPETING RISK", "COMPETINGRISKS", "COMPETING RISKS", "Competingrisk", "Competing risk", "Competingrisks", "Competing risks", "competingrisk", "competing risk", "competingrisks", "competing risks")) {
+    outcome.type <- "COMPETINGRISK"
+  } else if (outcome.type %in% c("SURVIVAL", "S", "Survival", "Survival")) {
+    outcome.type <- "SURVIVAL"
+  } else if (outcome.type %in% c("PROPORTIONAL", "P", "Proportional", "proportional")) {
+    outcome.type <- "PROPORTIONAL"
+  } else {
+    stop("Invalid input for 'outcome.type', Choose 'COMPETINGRISK', 'SURVIVAL', or 'PROPORTIONAL'.")
+  }
+  if (effect.measure1 %in% c("RR", "rr")) {
+    effect.measure1 <- "RR"
+  } else if (outcome.type %in% c("OR", "or")) {
+    effect.measure1 <- "OR"
+  } else if (outcome.type %in% c("SHR", "shr")) {
+    effect.measure1 <- "SHR"
+  } else {
+    stop("Invalid input for 'effect.measure1', Choose 'RR', 'OR', or 'SHR'.")
+  }
+  if (effect.measure1 %in% c("RR", "rr", "RISK RATIO", "Risk ratio", "risk ratio")) {
+    effect.measure2 <- "RR"
+  } else if (outcome.type %in% c("OR", "or", "ODDS RATIO", "Odds ratio", "odds ratio")) {
+    effect.measure2 <- "OR"
+  } else if (outcome.type %in% c("SHR", "shr", "HR", "hr", "SUBDISTRIBUTION HAZARD RATIO",
+                                 "Subdistibution hazard ratio", "subdistibution hazard ratio")) {
+    effect.measure2 <- "SHR"
+  } else {
+    stop("Invalid input for 'effect.measure2', Choose 'RR', 'OR', or 'SHR'.")
+  }
+}
+
+input_check <- function(outcome.type, time.point, conf.level) {
+  if ((outcome.type == "COMPETINGRISK" || outcome.type == "SURVIVAL") && length(time.point)>1) {
+    time.point <- max(time.point)
+  }
+  if (outcome.type == "PROPORTIONAL" & length(time.point)==1) {
+    outcome.type <- "COMPETINGRISK"
+  }
+  if (conf.level <= 0 || conf.level >= 1)
+    stop("Confidence level must be between 0 and 1")
+}

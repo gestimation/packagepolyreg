@@ -33,10 +33,14 @@ estimating_equation_ipcw <- function(
   }
   if (!is.null(offsetpos <- attributes(Terms)$specials$offset)) {
     ts <- survival::untangle.specials(Terms, "offset")
-    Terms <- Terms[-ts$terms]
-    offset <- m[[ts$vars]]
+    if (length(ts$vars) > 0) {
+      Terms <- Terms[-ts$terms]
+      offset <- mf[[ts$vars]]
+    } else {
+      offset <- rep(0, nrow(mf))
+    }
   } else {
-    offset <- rep(0, length(t))
+    offset <- rep(0, nrow(mf))
   }
 
   y_0 <- ifelse(epsilon == 0 | t > estimand$time.point, 1, 0)
