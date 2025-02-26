@@ -1,5 +1,3 @@
-
-
 calc_pred <- function(
     alpha_beta_tmp,
     x_em, x_l, offset,
