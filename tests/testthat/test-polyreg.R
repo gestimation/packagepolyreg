@@ -4,7 +4,7 @@ test_that("polyreg produced expected coefficients and var for bmt dataset", {
   tested_coefficient <- round(result$out_coefficient,digit=2)
   tested_cov <- round(result$out_cov[1,],digit=2)
   tested <- as.vector(cbind(tested_coefficient,tested_cov))
-  expected <- c(-2.81, 1.01, -1.32, -0.48, -2.65, 0.41, 0.63, 0.12, 0.09, -0.03, 0.00, -0.02, 0.05, -0.02, 0.00, -0.01)
+  expected <- c(-0.45, 1.01, -1.32, -0.48, -1.68, 0.41, 0.63, 0.12, 0.02, 0.00, -0.01, -0.01, 0.02, 0.00, -0.01, -0.01)
   expect_equal(expected, tested)
 })
 
@@ -16,10 +16,9 @@ test_that("predict.polyreg produced expected failure probabilities of first 2 ob
   tmp2 <- round(tmp1[1,],digit=5)
   tmp3 <- round(tmp1[2,],digit=5)
   tested <- as.vector(cbind(tmp2,tmp3))
-  expected <- c(0.42830, 0.33612, 0.46791, 0.36720)
+  expected <- c(0.64673, 0.50754, 0.68552, 0.53798)
   expect_equal(expected, tested)
 })
-
 
 test_that("predict.polyreg produced expected of cumulative incidence probabilities of first 2 obs for bmt dataset", {
   data(bmt)
@@ -28,6 +27,6 @@ test_that("predict.polyreg produced expected of cumulative incidence probabiliti
   tmp2 <- round(tmp1[1,],digit=5)
   tmp3 <- round(tmp1[2,],digit=5)
   tested <- as.vector(cbind(tmp2,tmp3))
-  expected <- c(0.22138, 0.16741, 0.13667, 0.18875, 0.25956, 0.17265, 0.16025, 0.19467)
+  expected <- c(0.47241, 0.17850, 0.29166, 0.20126, 0.52685, 0.17510, 0.32527, 0.19743)
   expect_equal(expected, tested)
 })

@@ -1,5 +1,5 @@
 calc_initial_values <- function(
-    formula, data, exposure, data.initlal.values, estimand, specific.time, outcome.type, optim.method, prob.bound
+    formula, data, exposure, effect.modifier, data.initlal.values, estimand, specific.time, outcome.type, prob.bound
 ) {
   cl <- match.call()
   mf <- match.call(expand.dots = TRUE)[1:3]
@@ -16,7 +16,7 @@ calc_initial_values <- function(
     if (any(t<0))
       stop("Expected non-negative time variable")
     epsilon <- Y[, 2]  # status variable
-    check_input(epsilon, outcome.type, optim.method)
+    input_check2(epsilon, outcome.type)
   } else {
     stop("Invalid outcome variables. Must be survival or competing risks outcome")
   }
@@ -51,23 +51,23 @@ calc_initial_values <- function(
 
   binarize_if_continuous <- function(x) {
     if (outcome.type == 'SURVIVAL') {
-      if (is.numeric(x) && length(unique(x)) > 2) {  # Check if numeric & not binary
+      if (is.numeric(x) & length(unique(x)) > 2) {  # Check if numeric & not binary
         l <- as.numeric((x >= median(x)) == TRUE)
-        out <- calc_initial_1_survival(t, epsilon, a, l, estimand, specific.time, prob.bound)
+        out <- calc_initial_1_survival(t, epsilon, a,  effect.modifier, l, estimand, specific.time, prob.bound)
         return(out)
       } else if (length(unique(x)) == 2) {
         l <- x
-        out <- calc_initial_1_survival(t, epsilon, a, l, estimand, specific.time, prob.bound)
+        out <- calc_initial_1_survival(t, epsilon, a,  effect.modifier, l, estimand, specific.time, prob.bound)
         return(out)
       }
     } else {
-      if (is.numeric(x) && length(unique(x)) > 2) {  # Check if numeric & not binary
+      if (is.numeric(x) & length(unique(x)) > 2) {
         l <- as.numeric((x >= median(x)) == TRUE)
-        out <- calc_initial_1_competing_risk(t, epsilon, a, l, estimand, specific.time, prob.bound)
+        out <- calc_initial_1_competing_risk(t, epsilon, a, effect.modifier, l, estimand, specific.time, prob.bound)
         return(out)
       } else if (length(unique(x)) == 2) {
         l <- x
-        out <- calc_initial_1_competing_risk(t, epsilon, a, l, estimand, specific.time, prob.bound)
+        out <- calc_initial_1_competing_risk(t, epsilon, a, effect.modifier, l, estimand, specific.time, prob.bound)
         return(out)
       }
     }
@@ -87,7 +87,7 @@ calc_initial_values <- function(
       }
       init_vals <- out_bic_1
     } else {
-      init_vals <- calc_initial_2_survival(t, epsilon, a, estimand, specific.time, prob.bound)
+      init_vals <- calc_initial_2_survival(t, epsilon, a, effect.modifier, estimand, specific.time, prob.bound)
     }
   } else {
     if (n_para_1>1) {
@@ -107,7 +107,7 @@ calc_initial_values <- function(
       }
       init_vals <- cbind(out_bic_1, out_bic_2)
     } else {
-      init_vals <- calc_initial_2_competing_risk(t, epsilon, a, estimand, specific.time, prob.bound)
+      init_vals <- calc_initial_2_competing_risk(t, epsilon, a, effect.modifier, estimand, specific.time, prob.bound)
     }
   }
   out <- list(init_vals = init_vals)
@@ -115,7 +115,7 @@ calc_initial_values <- function(
 }
 
 
-calc_initial_1_competing_risk <- function(t, epsilon, a, l, estimand, specific.time, prob.bound) {
+calc_initial_1_competing_risk <- function(t, epsilon, a, effect.modifier, l, estimand, specific.time, prob.bound) {
   epsilon00 <- epsilon[a == 0 & l == 0]
   epsilon10 <- epsilon[a == 1 & l == 0]
   epsilon01 <- epsilon[a == 0 & l == 1]
@@ -186,11 +186,15 @@ calc_initial_1_competing_risk <- function(t, epsilon, a, l, estimand, specific.t
   } else {
     stop("Invalid effect measure code. Must be RR, OR or SHR.")
   }
-  alpha_beta_univariable=cbind(alpha_10, alpha_11, beta_1, alpha_20, alpha_21, beta_2)
+  if (is.null(effect.modifier)) {
+    alpha_beta_univariable=cbind(alpha_10, alpha_11, beta_1, alpha_20, alpha_21, beta_2)
+  } else {
+    alpha_beta_univariable=cbind(alpha_10, alpha_11, beta_1, 0, alpha_20, alpha_21, beta_2, 0)
+  }
   return(alpha_beta_univariable)
 }
 
-calc_initial_2_competing_risk <- function(t, epsilon, a, estimand, specific.time, prob.bound) {
+calc_initial_2_competing_risk <- function(t, epsilon, a, effect.modifier, estimand, specific.time, prob.bound) {
   epsilon0 <- epsilon[a == 0]
   epsilon1 <- epsilon[a == 1]
   t0 <- t[a == 0]
@@ -223,11 +227,15 @@ calc_initial_2_competing_risk <- function(t, epsilon, a, estimand, specific.time
   }
   alpha_1 <- log( (p_10*p_11/(p_00*p_01) ))
   alpha_2 <- log( (p_20*p_21/(p_00*p_01) ))
-  alpha_beta_nocovariates <- cbind(alpha_1, beta_1, alpha_2, beta_2)
+  if (is.null(effect.modifier)) {
+    alpha_beta_nocovariates <- cbind(alpha_1, beta_1, alpha_2, beta_2)
+  } else {
+    alpha_beta_nocovariates <- cbind(alpha_1, beta_1,0, alpha_2, beta_2,0)
+  }
   return(alpha_beta_nocovariates)
 }
 
-calc_initial_1_survival <- function(t, epsilon, a, l, estimand, specific.time, prob.bound) {
+calc_initial_1_survival <- function(t, epsilon, a, effect.modifier, l, estimand, specific.time, prob.bound) {
   epsilon00 <- epsilon[a == 0 & l == 0]
   epsilon10 <- epsilon[a == 1 & l == 0]
   epsilon01 <- epsilon[a == 0 & l == 1]
@@ -276,11 +284,15 @@ calc_initial_1_survival <- function(t, epsilon, a, l, estimand, specific.time, p
   } else {
     stop("Invalid effect measure code. Must be RR, OR or SHR.")
   }
-  alpha_beta_univariable=cbind(alpha_10, alpha_11, beta_1)
+  if (is.null(effect.modifier)) {
+    alpha_beta_univariable=cbind(alpha_10, alpha_11, beta_1)
+  } else {
+    alpha_beta_univariable=cbind(alpha_10, alpha_11, beta_1, 0)
+  }
   return(alpha_beta_univariable)
 }
 
-calc_initial_2_survival <- function(t, epsilon, a, estimand, specific.time, prob.bound) {
+calc_initial_2_survival <- function(t, epsilon, a, effect.modifier, estimand, specific.time, prob.bound) {
   epsilon0 <- epsilon[a == 0]
   epsilon1 <- epsilon[a == 1]
   t0 <- t[a == 0]
@@ -300,50 +312,65 @@ calc_initial_2_survival <- function(t, epsilon, a, estimand, specific.time, prob
     stop("Invalid effect measure code. Must be RR, OR or SHR.")
   }
   alpha_1 <- log( (p_10*p_11/(p_00*p_01) ))
-  alpha_beta_nocovariates <- cbind(alpha_1, beta_1)
+  if (is.null(effect.modifier)) {
+    alpha_beta_nocovariates <- cbind(alpha_1, beta_1)
+  } else {
+    alpha_beta_nocovariates <- cbind(alpha_1, beta_1, 0)
+  }
   return(alpha_beta_nocovariates)
 }
 
-normalize_covariate <- function(formula, data, covariate.normalization, outcome.type) {
+normalize_covariate <- function(formula, data, effect.modifier, covariate.normalization, outcome.type) {
   mf <- model.frame(formula, data)
   Y <- model.extract(mf, "response")
   response_term <- formula[[2]]
-  if (inherits(mf[[1]], "Surv") || inherits(mf[[1]], "Event")) {
-    # If it's a Surv object, extract the covariates excluding time and event
+  if (inherits(mf[[1]], "Surv") | inherits(mf[[1]], "Event")) {
     response_vars <- all.vars(response_term)
     covariate_cols <- setdiff(all.vars(formula), response_vars)  # Remove time and event
   } else {
-    # If it's a regular response, exclude just the response variable
     covariate_cols <- all.vars(formula)[-1]  # Exclude the response variable
+  }
+
+  normalize <- function(x) {
+    return ((x - min(x)) / (max(x) - min(x)))
   }
 
   normalized_data <- data
   range_vector <- 1
-  if (covariate.normalization == TRUE && length(covariate_cols)>0) {
-    normalize <- function(x) {
-      return ((x - min(x)) / (max(x) - min(x)))
-    }
+  if (covariate.normalization == TRUE & length(covariate_cols)>0) {
     for (col in covariate_cols) {
       x <- normalized_data[[col]]
       range <- max(x)-min(x)
-      normalized_data[[col]] <- (x - min(x)) / range
+      normalized_data[[col]] <- x/range
       range_vector <- cbind(range_vector,range)
     }
-    if (outcome.type == 'PROPORTIONAL') {
-      range_vector <- cbind(range_vector)
-    } else if (outcome.type == 'SURVIVAL') {
-      range_vector <- cbind(range_vector,1)
+    if (!is.null(effect.modifier)) {
+      x <- normalized_data[[effect.modifier]]
+      range <- max(x)-min(x)
+      normalized_data$effect.modifier <- x/range
+      range_vector <- cbind(range_vector,1, range)
+      if (outcome.type == 'SURVIVAL') {
+        range_vector <- cbind(range_vector)
+      } else {
+        range_vector <- cbind(range_vector,range_vector)
+      }
     } else {
-      range_vector <- cbind(range_vector,1,range_vector,1)
+      if (outcome.type == 'SURVIVAL') {
+        range_vector <- cbind(range_vector,1)
+      } else {
+        range_vector <- cbind(range_vector,1,range_vector,1)
+      }
     }
-  } else {
-    if (outcome.type == 'PROPORTIONAL') {
-      range_vector <- rep(1, (length(covariate_cols)+1))
-    } else if (outcome.type == 'SURVIVAL') {
+  } else if (!is.null(effect.modifier)) {
+    if (outcome.type == 'SURVIVAL') {
+      range_vector <- rep(1, (length(covariate_cols)+3))
+    } else {
+      range_vector <- rep(1, (2*length(covariate_cols)+6))
+    }
+  } else if (outcome.type == 'SURVIVAL') {
       range_vector <- rep(1, (length(covariate_cols)+2))
-    } else {
+  } else {
       range_vector <- rep(1, (2*length(covariate_cols)+4))
-    }
   }
   n_covariate <- length(covariate_cols)
   out <- list(normalized_data=normalized_data, range=range_vector, n_covariate=n_covariate, n=nrow(data))
@@ -351,7 +378,7 @@ normalize_covariate <- function(formula, data, covariate.normalization, outcome.
 }
 
 sort_by_covariate <- function(formula, data, sort.data, n_covariate) {
-  if (sort.data == TRUE && n_covariate>0) {
+  if (sort.data == TRUE & n_covariate>0) {
     terms_obj <- terms(formula)
     covariate_names <- attr(terms_obj, "term.labels")
     missing_vars <- setdiff(covariate_names, names(data))
@@ -367,83 +394,64 @@ sort_by_covariate <- function(formula, data, sort.data, n_covariate) {
 
 spell_check <- function(outcome.type, effect.measure1, effect.measure2) {
   if (outcome.type %in% c("COMPETINGRISK", "C", "CR", "COMPETING RISK", "COMPETINGRISKS", "COMPETING RISKS", "Competingrisk", "Competing risk", "Competingrisks", "Competing risks", "competingrisk", "competing risk", "competingrisks", "competing risks")) {
-    outcome.type <- "COMPETINGRISK"
+    outcome.type.corrected <<- "COMPETINGRISK"
   } else if (outcome.type %in% c("SURVIVAL", "S", "Survival", "Survival")) {
-    outcome.type <- "SURVIVAL"
+    outcome.type.corrected <<- "SURVIVAL"
   } else if (outcome.type %in% c("PROPORTIONAL", "P", "Proportional", "proportional")) {
-    outcome.type <- "PROPORTIONAL"
+    outcome.type.corrected <<- "PROPORTIONAL"
   } else {
     stop("Invalid input for 'outcome.type', Choose 'COMPETINGRISK', 'SURVIVAL', or 'PROPORTIONAL'.")
   }
   if (effect.measure1 %in% c("RR", "rr")) {
-    effect.measure1 <- "RR"
+    effect.measure1.corrected <<- "RR"
   } else if (outcome.type %in% c("OR", "or")) {
-    effect.measure1 <- "OR"
+    effect.measure1.corrected <<- "OR"
   } else if (outcome.type %in% c("SHR", "shr")) {
-    effect.measure1 <- "SHR"
+    effect.measure1.corrected <<- "SHR"
   } else {
     stop("Invalid input for 'effect.measure1', Choose 'RR', 'OR', or 'SHR'.")
   }
   if (effect.measure1 %in% c("RR", "rr", "RISK RATIO", "Risk ratio", "risk ratio")) {
-    effect.measure2 <- "RR"
+    effect.measure2.corrected <<- "RR"
   } else if (outcome.type %in% c("OR", "or", "ODDS RATIO", "Odds ratio", "odds ratio")) {
-    effect.measure2 <- "OR"
+    effect.measure2.corrected <<- "OR"
   } else if (outcome.type %in% c("SHR", "shr", "HR", "hr", "SUBDISTRIBUTION HAZARD RATIO",
                                  "Subdistibution hazard ratio", "subdistibution hazard ratio")) {
-    effect.measure2 <- "SHR"
+    effect.measure2.corrected <<- "SHR"
   } else {
     stop("Invalid input for 'effect.measure2', Choose 'RR', 'OR', or 'SHR'.")
   }
 }
 
-input_check <- function(outcome.type, time.point, conf.level) {
-  if ((outcome.type == "COMPETINGRISK" || outcome.type == "SURVIVAL") && length(time.point)>1) {
-    time.point <- max(time.point)
+input_check1 <- function(outcome.type, time.point, conf.level, outer.optim.method, inner.optim.method) {
+  if ((outcome.type == "COMPETINGRISK" | outcome.type == "SURVIVAL") & length(time.point)>1) {
+    time.point.corrected <<- max(time.point)
+  } else {
+    time.point.corrected <<- time.point
   }
   if (outcome.type == "PROPORTIONAL" & length(time.point)==1) {
-    outcome.type <- "COMPETINGRISK"
+    outcome.type.corrected <<- "COMPETINGRISK"
   }
-  if (conf.level <= 0 || conf.level >= 1)
+  if (conf.level <= 0 | conf.level >= 1)
     stop("Confidence level must be between 0 and 1")
-}
-
-
-
-check_input <- function(epsilon, outcome.type, optim.method) {
-  if (!all(epsilon %in% c(0, 1, 2))) {
-    stop("Invalid event code. Must be 0, 1 or 2, with 0 representing censoring")
-  } else if (outcome.type == 'COMPETINGRISK' && all(epsilon %in% c(0, 1))) {
-    stop("Invalid event code. Expected both event code 1 and 2 with competing risks outcome")
-  } else if (outcome.type == 'SURVIVAL' && !all(epsilon %in% c(0, 1))) {
-    stop("Invalid event code. Must be 0 or 1, with 0 representing censoring")
-  }
-  if (outcome.type == "COMPETINGRISK" && !optim.method$outer.optim.method %in% c("nleqslv","Newton","Broyden","optim","BFGS","SANN","multiroot","partial")) {
+  if (outcome.type == "COMPETINGRISK" & !outer.optim.method %in% c("nleqslv","Newton","Broyden","optim","BFGS","SANN","multiroot","partial")) {
     stop("Invalid input for 'optimization'. Choose 'nleqslv', 'Newton', 'Broyden', 'optim', 'BFGS', 'SANN', 'multiroot' or 'partial'.")
   }
-  if (outcome.type == "SURVIVAL" && optim.method$outer.optim.method == "partial") {
+  if (outcome.type == "SURVIVAL" & outer.optim.method == "partial") {
     stop("Invalid input for 'optimization'. Choose 'nleqslv', 'Newton', 'Broyden', 'optim', 'BFGS', 'SANN' or 'multiroot'.")
   }
-  if (!optim.method$inner.optim.method %in% c("optim","BFGS","SANN","multiroot")) {
+  if (!inner.optim.method %in% c("optim","BFGS","SANN","multiroot")) {
     stop("Invalid input for 'optimization'. Choose 'optim', 'BFGS', 'SANN' or 'multiroot'.")
   }
 }
 
-
-check_input <- function(epsilon, outcome.type, optim.method) {
+input_check2 <- function(epsilon, outcome.type) {
   if (!all(epsilon %in% c(0, 1, 2))) {
     stop("Invalid event code. Must be 0, 1 or 2, with 0 representing censoring")
-  } else if (outcome.type == 'COMPETINGRISK' && all(epsilon %in% c(0, 1))) {
+  } else if (outcome.type == 'COMPETINGRISK' & all(epsilon %in% c(0, 1))) {
     stop("Invalid event code. Expected both event code 1 and 2 with competing risks outcome")
-  } else if (outcome.type == 'SURVIVAL' && !all(epsilon %in% c(0, 1))) {
+  } else if (outcome.type == 'SURVIVAL' & !all(epsilon %in% c(0, 1))) {
     stop("Invalid event code. Must be 0 or 1, with 0 representing censoring")
   }
-  if (outcome.type == "COMPETINGRISK" && !optim.method$outer.optim.method %in% c("nleqslv","Newton","Broyden","optim","BFGS","SANN","multiroot","partial")) {
-    stop("Invalid input for 'optimization'. Choose 'nleqslv', 'Newton', 'Broyden', 'optim', 'BFGS', 'SANN', 'multiroot' or 'partial'.")
-  }
-  if (outcome.type == "SURVIVAL" && optim.method$outer.optim.method == "partial") {
-    stop("Invalid input for 'optimization'. Choose 'nleqslv', 'Newton', 'Broyden', 'optim', 'BFGS', 'SANN' or 'multiroot'.")
-  }
-  if (!optim.method$inner.optim.method %in% c("optim","BFGS","SANN","multiroot")) {
-    stop("Invalid input for 'optimization'. Choose 'optim', 'BFGS', 'SANN' or 'multiroot'.")
-  }
 }
+
