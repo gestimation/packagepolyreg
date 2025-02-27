@@ -1,4 +1,4 @@
-reporting_competing_risk <- function(nuisance.model, exposure, effect.modifier, estimand, alpha_beta_estimated, cov_estimated,
+reporting_competing_risk <- function(nuisance.model, exposure, estimand, alpha_beta_estimated, cov_estimated,
                                      objget_results, iteration, diff_val, sol, conf.level, outer.optim.method) {
   alpha <- 1 - conf.level
   critical_value <- qnorm(1 - alpha / 2)
@@ -37,6 +37,7 @@ reporting_competing_risk <- function(nuisance.model, exposure, effect.modifier, 
   y_1 <- objget_results$y_1
   y_2 <- objget_results$y_2
 
+  effect.modifier <- NULL
   if (!is.null(effect.modifier)) {
     text1 <- c("Intercept", attr(terms(nuisance.model), "term.labels"), exposure, "Interaction")
   } else {
@@ -157,7 +158,7 @@ reporting_competing_risk <- function(nuisance.model, exposure, effect.modifier, 
   return(tg)
 }
 
-reporting_survival <- function(nuisance.model, exposure, effect.modifier, estimand, alpha_beta_estimated, cov_estimated,
+reporting_survival <- function(nuisance.model, exposure, estimand, alpha_beta_estimated, cov_estimated,
                                objget_results, iteration, diff_val, sol, conf.level, outer.optim.method) {
   alpha <- 1 - conf.level
   critical_value <- qnorm(1 - alpha / 2)
@@ -181,7 +182,7 @@ reporting_survival <- function(nuisance.model, exposure, effect.modifier, estima
   y_1_ <- objget_results$y_1_
   y_0 <- objget_results$y_0
   y_1 <- objget_results$y_1
-
+  effect.modifier <- NULL
   if (!is.null(effect.modifier)) {
     text1 <- c("Intercept", attr(terms(nuisance.model), "term.labels"), exposure, "Interaction")
   } else {
@@ -255,7 +256,6 @@ reporting_survival <- function(nuisance.model, exposure, effect.modifier, estima
 reporting_prediction <- function(formula,
                                  data,
                                  exposure,
-                                 effect.modifier = NULL,
                                  alpha_beta,
                                  cov = NULL,
                                  outcome.type,
@@ -296,7 +296,7 @@ reporting_prediction <- function(formula,
 
   a_ <- as.factor(data[[exposure]])
   a <- model.matrix(~ a_)[, 2]
-
+  effect.modifier <- NULL
   one <- rep(1, length(t))
   if (!is.null(effect.modifier)) {
     em <- data[[effect.modifier]]

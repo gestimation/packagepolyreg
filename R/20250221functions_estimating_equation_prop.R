@@ -2,7 +2,6 @@ estimating_equation_ipcw <- function(
     formula,
     data,
     exposure,
-    effect.modifier,
     ip_weight,
     alpha_beta,
     estimand,
@@ -56,6 +55,7 @@ estimating_equation_ipcw <- function(
   a <- model.matrix(~ a_)[, 2]
 
   one <- rep(1, length(t))
+  effect.modifier <- NULL
   if (!is.null(effect.modifier)) {
     em <- data[[effect.modifier]]
     a_interaction <- as.matrix(cbind(a, a*em))
@@ -142,7 +142,6 @@ estimating_equation_partial <- function(
     formula,
     data,
     exposure,
-    effect.modifier,
     ip_weight,
     alpha_beta_partial,
     alpha_beta1_current,
@@ -193,7 +192,7 @@ estimating_equation_partial <- function(
 
   a_ <- as.factor(data[[exposure]])
   a <- model.matrix(~ a_)[, 2]
-
+  effect.modifier <- NULL
   one <- rep(1, length(t))
   if (!is.null(effect.modifier)) {
     em <- data[[effect.modifier]]
@@ -419,59 +418,10 @@ calc_d <- function(pred, a, a_interaction, x_l, estimand, prob.bound) {
   return(list(d_11 = d_11, d_12 = d_12, d_22 = d_22))
 }
 
-calc_d_old <- function(pred, a, x_l, estimand, prob.bound) {
-  pred_1 <- ifelse(pred[, 1] == 0, prob.bound, ifelse(pred[, 1] == 1, 1 - prob.bound, pred[, 1]))
-  pred_2 <- ifelse(pred[, 2] == 0, prob.bound, ifelse(pred[, 2] == 1, 1 - prob.bound, pred[, 2]))
-  pred_3 <- ifelse(pred[, 3] == 0, prob.bound, ifelse(pred[, 3] == 1, 1 - prob.bound, pred[, 3]))
-  pred_4 <- ifelse(pred[, 4] == 0, prob.bound, ifelse(pred[, 4] == 1, 1 - prob.bound, pred[, 4]))
-  a11 <- a12 <- a22 <- NULL
-  n <- length(a)
-
-  if (estimand$effect.measure1 == 'RR') {
-    a11 <- a * (1 / pred_3) + (1 - a) * (1 / pred_1)
-  } else if (estimand$effect.measure1 == 'OR') {
-    a11 <- a * (1 / pred_3 + 1 / (1 - pred_3)) + (1 - a) * (1 / pred_1 + 1 / (1 - pred_1))
-  } else if (estimand$effect.measure1 == 'SHR') {
-    tmp31 <- -1 / (1 - pred_3)
-    tmp32 <- log(1 - pred_3)
-    tmp11 <- -1 / (1 - pred_1)
-    tmp12 <- log(1 - pred_1)
-    a11 <- a * (tmp31 / tmp32) + (1 - a) * (tmp11 / tmp12)
-  }
-
-  if (estimand$effect.measure2 == 'RR') {
-    a22 <- a * (1 / pred_4) + (1 - a) * (1 / pred_2)
-  } else if (estimand$effect.measure2 == 'OR') {
-    a22 <- a * (1 / pred_4 + 1 / (1 - pred_4)) + (1 - a) * (1 / pred_2 + 1 / (1 - pred_2))
-  } else if (estimand$effect.measure2 == 'SHR') {
-    tmp41 <- -1 / (1 - pred_4)
-    tmp42 <- log(1 - pred_4)
-    tmp21 <- -1 / (1 - pred_2)
-    tmp22 <- log(1 - pred_2)
-    a22 <- a * (tmp41 / tmp42) + (1 - a) * (tmp21 / tmp22)
-  }
-
-  a12 <- matrix(0, nrow = n, ncol = 1)
-  d_ey_d_beta_11 <- a22 / (a11 * a22 - a12 * a12)
-  d_ey_d_beta_12 <- -a12 / (a11 * a22 - a12 * a12)
-  d_ey_d_beta_22 <- a11 / (a11 * a22 - a12 * a12)
-  c12 <- a * (1 / (1 - pred_3 - pred_4)) + (1 - a) * (1 / (1 - pred_1 - pred_2))
-  c11 <- a11 + c12
-  c22 <- a22 + c12
-  d_ey_d_alpha_11 <- c22 / (c11 * c22 - c12 * c12)
-  d_ey_d_alpha_12 <- -c12 / (c11 * c22 - c12 * c12)
-  d_ey_d_alpha_22 <- c11 / (c11 * c22 - c12 * c12)
-  d_11 <- cbind((d_ey_d_alpha_11 * x_l), (d_ey_d_beta_11 * a))
-  d_12 <- cbind((d_ey_d_alpha_12 * x_l), (d_ey_d_beta_12 * a))
-  d_22 <- cbind((d_ey_d_alpha_22 * x_l), (d_ey_d_beta_22 * a))
-  return(list(d_11 = d_11, d_12 = d_12, d_22 = d_22))
-}
-
 estimating_equation_survival <- function(
     formula,
     data,
     exposure,
-    effect.modifier,
     ip_weight,
     alpha_beta,
     estimand, prob.bound, initial_pred = NULL
@@ -511,7 +461,7 @@ estimating_equation_survival <- function(
 
   a_ <- as.factor(data[[exposure]])
   a <- model.matrix(~ a_)[, 2]
-
+  effect.modifier <- NULL
   one <- rep(1, length(t))
   if (!is.null(effect.modifier)) {
     em <- data[[effect.modifier]]
@@ -647,7 +597,6 @@ calc_d_survival <- function(pred, a, a_interaction, x_l, estimand, prob.bound) {
 estimating_equation_proportional <- function(
     formula,
     data,
-    effect.modifier,
     exposure,
     ip_wt_matrix,
     alpha_beta,
@@ -693,7 +642,7 @@ estimating_equation_proportional <- function(
 
   a_ <- as.factor(data[[exposure]])
   a <- model.matrix(~ a_)[, 2]
-
+  effect.modifier <- NULL
   one <- rep(1, length(t))
   if (!is.null(effect.modifier)) {
     em <- data[[effect.modifier]]

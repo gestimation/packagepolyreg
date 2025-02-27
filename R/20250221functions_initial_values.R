@@ -1,5 +1,5 @@
 calc_initial_values <- function(
-    formula, data, exposure, effect.modifier, data.initlal.values, estimand, specific.time, outcome.type, prob.bound
+    formula, data, exposure, data.initlal.values, estimand, specific.time, outcome.type, prob.bound
 ) {
   cl <- match.call()
   mf <- match.call(expand.dots = TRUE)[1:3]
@@ -53,21 +53,21 @@ calc_initial_values <- function(
     if (outcome.type == 'SURVIVAL') {
       if (is.numeric(x) & length(unique(x)) > 2) {  # Check if numeric & not binary
         l <- as.numeric((x >= median(x)) == TRUE)
-        out <- calc_initial_1_survival(t, epsilon, a,  effect.modifier, l, estimand, specific.time, prob.bound)
+        out <- calc_initial_1_survival(t, epsilon, a, l, estimand, specific.time, prob.bound)
         return(out)
       } else if (length(unique(x)) == 2) {
         l <- x
-        out <- calc_initial_1_survival(t, epsilon, a,  effect.modifier, l, estimand, specific.time, prob.bound)
+        out <- calc_initial_1_survival(t, epsilon, a, l, estimand, specific.time, prob.bound)
         return(out)
       }
     } else {
       if (is.numeric(x) & length(unique(x)) > 2) {
         l <- as.numeric((x >= median(x)) == TRUE)
-        out <- calc_initial_1_competing_risk(t, epsilon, a, effect.modifier, l, estimand, specific.time, prob.bound)
+        out <- calc_initial_1_competing_risk(t, epsilon, a, l, estimand, specific.time, prob.bound)
         return(out)
       } else if (length(unique(x)) == 2) {
         l <- x
-        out <- calc_initial_1_competing_risk(t, epsilon, a, effect.modifier, l, estimand, specific.time, prob.bound)
+        out <- calc_initial_1_competing_risk(t, epsilon, a, l, estimand, specific.time, prob.bound)
         return(out)
       }
     }
@@ -87,7 +87,7 @@ calc_initial_values <- function(
       }
       init_vals <- out_bic_1
     } else {
-      init_vals <- calc_initial_2_survival(t, epsilon, a, effect.modifier, estimand, specific.time, prob.bound)
+      init_vals <- calc_initial_2_survival(t, epsilon, a, estimand, specific.time, prob.bound)
     }
   } else {
     if (n_para_1>1) {
@@ -107,7 +107,7 @@ calc_initial_values <- function(
       }
       init_vals <- cbind(out_bic_1, out_bic_2)
     } else {
-      init_vals <- calc_initial_2_competing_risk(t, epsilon, a, effect.modifier, estimand, specific.time, prob.bound)
+      init_vals <- calc_initial_2_competing_risk(t, epsilon, a, estimand, specific.time, prob.bound)
     }
   }
   out <- list(init_vals = init_vals)
@@ -115,7 +115,7 @@ calc_initial_values <- function(
 }
 
 
-calc_initial_1_competing_risk <- function(t, epsilon, a, effect.modifier, l, estimand, specific.time, prob.bound) {
+calc_initial_1_competing_risk <- function(t, epsilon, a, l, estimand, specific.time, prob.bound) {
   epsilon00 <- epsilon[a == 0 & l == 0]
   epsilon10 <- epsilon[a == 1 & l == 0]
   epsilon01 <- epsilon[a == 0 & l == 1]
@@ -186,6 +186,7 @@ calc_initial_1_competing_risk <- function(t, epsilon, a, effect.modifier, l, est
   } else {
     stop("Invalid effect measure code. Must be RR, OR or SHR.")
   }
+  effect.modifier <- NULL
   if (is.null(effect.modifier)) {
     alpha_beta_univariable=cbind(alpha_10, alpha_11, beta_1, alpha_20, alpha_21, beta_2)
   } else {
@@ -194,7 +195,7 @@ calc_initial_1_competing_risk <- function(t, epsilon, a, effect.modifier, l, est
   return(alpha_beta_univariable)
 }
 
-calc_initial_2_competing_risk <- function(t, epsilon, a, effect.modifier, estimand, specific.time, prob.bound) {
+calc_initial_2_competing_risk <- function(t, epsilon, a, estimand, specific.time, prob.bound) {
   epsilon0 <- epsilon[a == 0]
   epsilon1 <- epsilon[a == 1]
   t0 <- t[a == 0]
@@ -227,6 +228,8 @@ calc_initial_2_competing_risk <- function(t, epsilon, a, effect.modifier, estima
   }
   alpha_1 <- log( (p_10*p_11/(p_00*p_01) ))
   alpha_2 <- log( (p_20*p_21/(p_00*p_01) ))
+
+  effect.modifier <- NULL
   if (is.null(effect.modifier)) {
     alpha_beta_nocovariates <- cbind(alpha_1, beta_1, alpha_2, beta_2)
   } else {
@@ -235,7 +238,7 @@ calc_initial_2_competing_risk <- function(t, epsilon, a, effect.modifier, estima
   return(alpha_beta_nocovariates)
 }
 
-calc_initial_1_survival <- function(t, epsilon, a, effect.modifier, l, estimand, specific.time, prob.bound) {
+calc_initial_1_survival <- function(t, epsilon, a, l, estimand, specific.time, prob.bound) {
   epsilon00 <- epsilon[a == 0 & l == 0]
   epsilon10 <- epsilon[a == 1 & l == 0]
   epsilon01 <- epsilon[a == 0 & l == 1]
@@ -284,6 +287,8 @@ calc_initial_1_survival <- function(t, epsilon, a, effect.modifier, l, estimand,
   } else {
     stop("Invalid effect measure code. Must be RR, OR or SHR.")
   }
+
+  effect.modifier <- NULL
   if (is.null(effect.modifier)) {
     alpha_beta_univariable=cbind(alpha_10, alpha_11, beta_1)
   } else {
@@ -292,7 +297,7 @@ calc_initial_1_survival <- function(t, epsilon, a, effect.modifier, l, estimand,
   return(alpha_beta_univariable)
 }
 
-calc_initial_2_survival <- function(t, epsilon, a, effect.modifier, estimand, specific.time, prob.bound) {
+calc_initial_2_survival <- function(t, epsilon, a, estimand, specific.time, prob.bound) {
   epsilon0 <- epsilon[a == 0]
   epsilon1 <- epsilon[a == 1]
   t0 <- t[a == 0]
@@ -312,6 +317,8 @@ calc_initial_2_survival <- function(t, epsilon, a, effect.modifier, estimand, sp
     stop("Invalid effect measure code. Must be RR, OR or SHR.")
   }
   alpha_1 <- log( (p_10*p_11/(p_00*p_01) ))
+
+  effect.modifier <- NULL
   if (is.null(effect.modifier)) {
     alpha_beta_nocovariates <- cbind(alpha_1, beta_1)
   } else {
@@ -320,7 +327,7 @@ calc_initial_2_survival <- function(t, epsilon, a, effect.modifier, estimand, sp
   return(alpha_beta_nocovariates)
 }
 
-normalize_covariate <- function(formula, data, effect.modifier, covariate.normalization, outcome.type) {
+normalize_covariate <- function(formula, data, covariate.normalization, outcome.type) {
   mf <- model.frame(formula, data)
   Y <- model.extract(mf, "response")
   response_term <- formula[[2]]
@@ -337,6 +344,7 @@ normalize_covariate <- function(formula, data, effect.modifier, covariate.normal
 
   normalized_data <- data
   range_vector <- 1
+  effect.modifier <- NULL
   if (covariate.normalization == TRUE & length(covariate_cols)>0) {
     for (col in covariate_cols) {
       x <- normalized_data[[col]]

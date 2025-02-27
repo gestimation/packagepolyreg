@@ -2,7 +2,6 @@
 #'
 #' @param nuisance.model formula Model formula representing outcome, exposure and covariates
 #' @param exposure character Column name representing the exposure (1 = exposed, 0 = not exposed).
-#' @param effect.modifier character Column name representing an effect.modifier.
 #' @param cens.model formula Model formula representing censoring and covariates.
 #' @param data data.frame Input dataset containing survival data.
 #' @param effect.measure1 character Specifies the effect measure for event (RR, OR, SHR).
@@ -37,7 +36,6 @@
 polyreg <- function(
     nuisance.model,
     exposure,
-    effect.modifier = NULL,
     cens.model,
     data,
     effect.measure1 = 'RR',
@@ -85,7 +83,7 @@ polyreg <- function(
     optim.parameter8 = optim.parameter8
   )
 
-  out_normalize_covariate <- normalize_covariate(nuisance.model, data, effect.modifier, covariate.normalization, outcome.type)
+  out_normalize_covariate <- normalize_covariate(nuisance.model, data, covariate.normalization, outcome.type)
   normalized_data <- out_normalize_covariate$normalized_data
   sorted_data <- sort_by_covariate(nuisance.model, normalized_data, sort.data, out_normalize_covariate$n_covariate)
 
@@ -109,7 +107,6 @@ polyreg <- function(
         formula = nuisance.model,
         data = sorted_data,
         exposure = exposure,
-        effect.modifier = effect.modifier,
         data.initlal.values = data.initlal.values,
         estimand = estimand,
         specific.time = specific.time,
@@ -132,7 +129,6 @@ polyreg <- function(
       formula = nuisance.model,
       data = sorted_data,
       exposure = exposure,
-      effect.modifier = effect.modifier,
       data.initlal.values = data.initlal.values,
       estimand = estimand,
       specific.time = estimand$time.point,
@@ -168,7 +164,6 @@ polyreg <- function(
         formula = nuisance.model,
         data = sorted_data,
         exposure = exposure,
-        effect.modifier = effect.modifier,
         ip_weight = ip_wt,
         alpha_beta = p,
         estimand = estimand,
@@ -183,7 +178,6 @@ polyreg <- function(
         formula = nuisance.model,
         data = sorted_data,
         exposure = exposure,
-        effect.modifier = effect.modifier,
         ip_weight = ip_wt,
         alpha_beta = p,
         estimand = estimand,
@@ -197,7 +191,6 @@ polyreg <- function(
         formula = nuisance.model,
         data = sorted_data,
         exposure = exposure,
-        effect.modifier = effect.modifier,
         ip_weight = ip_wt,
         alpha_beta_partial = p,
         alpha_beta1_current = current_params1,
@@ -215,7 +208,6 @@ polyreg <- function(
         formula = nuisance.model,
         data = sorted_data,
         exposure = exposure,
-        effect.modifier = effect.modifier,
         ip_wt_matrix = ip_wt_matrix,
         alpha_beta = p,
         estimand = estimand,
@@ -443,11 +435,11 @@ polyreg <- function(
   )
   if (outcome.type %in% names(report_results)) {
     out_summary <- report_results[[outcome.type]](
-      nuisance.model, exposure, effect.modifier, estimand, alpha_beta_estimated,
+      nuisance.model, exposure, estimand, alpha_beta_estimated,
       cov_estimated, objget_results, iteration, diff_val, sol,
       conf.level, optim.method$outer.optim.method
     )
-    out_prediction <- reporting_prediction(nuisance.model,data,exposure,effect.modifier,
+    out_prediction <- reporting_prediction(nuisance.model,data,exposure,
                                            alpha_beta_estimated,cov_estimated,outcome.type,estimand,optim.method,prob.bound)
   }
   out_reporting <- list(out_summary = out_summary, out_prediction = out_prediction, out_coefficient=alpha_beta_estimated, out_cov=cov_estimated)
