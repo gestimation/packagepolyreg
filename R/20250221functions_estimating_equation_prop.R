@@ -1,3 +1,14 @@
+calc_i_parameter <- function(i_parameter,x_l,x_a) {
+  i_parameter[1] <- ncol(x_l)
+  i_parameter[2] <- i_parameter[1] + 1
+  i_parameter[3] <- i_parameter[1] + ncol(x_a)
+  i_parameter[4] <- i_parameter[1] + ncol(x_a) + 1
+  i_parameter[5] <- 2 * i_parameter[1] + ncol(x_a)
+  i_parameter[6] <- 2 * i_parameter[1] + ncol(x_a) + 1
+  i_parameter[7] <- 2 * i_parameter[1] + 2 * ncol(x_a)
+  return(i_parameter)
+}
+
 estimating_equation_ipcw <- function(
     formula,
     data,
@@ -52,35 +63,19 @@ estimating_equation_ipcw <- function(
   y_2_ <- ifelse(epsilon == 2, 1, 0)
 
   a_ <- as.factor(data[[exposure]])
-  a <- model.matrix(~ a_)[, 2]
-
-  one <- rep(1, length(t))
-  effect.modifier <- NULL
-  if (!is.null(effect.modifier)) {
-    em <- data[[effect.modifier]]
-    a_interaction <- as.matrix(cbind(a, a*em))
-    x_em <- as.matrix(cbind(one, em))
-  } else {
-    a_interaction <- a
-    x_em <- as.matrix(one)
-  }
+  #  a <- model.matrix(~ a_)[, -1]
+  #  a_interaction <- a
+  x_a <- as.matrix(model.matrix(~ a_)[, -1])
   x_l <- model.matrix(Terms, mf)
-  x_la <- cbind(x_l, a_interaction)
-
+  x_la <- cbind(x_l, x_a)
   i_parameter <- rep(NA, 7)
-  i_parameter[1] <- ncol(x_l)
-  i_parameter[2] <- i_parameter[1] + 1
-  i_parameter[3] <- i_parameter[1] + ncol(x_em)
-  i_parameter[4] <- i_parameter[1] + ncol(x_em) + 1
-  i_parameter[5] <- 2 * i_parameter[1] + ncol(x_em)
-  i_parameter[6] <- 2 * i_parameter[1] + ncol(x_em) + 1
-  i_parameter[7] <- 2 * i_parameter[1] + 2 * ncol(x_em)
+  i_parameter <- calc_i_parameter(i_parameter,x_l,x_a)
 
-  epsilon0 <- epsilon[a == 0]
-  epsilon1 <- epsilon[a == 1]
-
-  pred <- calc_pred(alpha_beta,x_em,x_l,offset,epsilon0,epsilon1,one,i_parameter[1],estimand,optim.method,prob.bound,initial_pred)
-
+  pred <- calc_pred(alpha_beta,x_a,x_l,offset,epsilon,estimand,optim.method,prob.bound,initial_pred)
+#  ey_1 <- pred[,1]
+#  ey_2 <- pred[,2]
+  a <- model.matrix(~ a_)[, -1]
+  one <- rep(1,length(a))
   ey_1 <- pred[,3]*a + pred[,1]*(one - a)
   ey_2 <- pred[,4]*a + pred[,2]*(one - a)
 
@@ -128,8 +123,7 @@ estimating_equation_ipcw <- function(
     y_0_ = y_0_,
     y_1_ = y_1_,
     y_2_ = y_2_,
-    a = a,
-    a_interaction = a_interaction,
+    x_a = x_a,
     x_l = x_l,
     x_la = x_la,
     ip_weight = ip_weight,
@@ -191,32 +185,15 @@ estimating_equation_partial <- function(
   y_2_ <- ifelse(epsilon == 2, 1, 0)
 
   a_ <- as.factor(data[[exposure]])
-  a <- model.matrix(~ a_)[, 2]
-  effect.modifier <- NULL
-  one <- rep(1, length(t))
-  if (!is.null(effect.modifier)) {
-    em <- data[[effect.modifier]]
-    a_interaction <- as.matrix(cbind(a, a*em))
-    x_em <- as.matrix(cbind(one, em))
-  } else {
-    a_interaction <- a
-    x_em <- as.matrix(one)
-  }
+  #  a <- model.matrix(~ a_)[, -1]
+  #  a_interaction <- a
+  x_a <- model.matrix(~ a_)[, -1]
   x_l <- model.matrix(Terms, mf)
-  x_la <- cbind(x_l, a_interaction)
+  x_la <- cbind(x_l, x_a)
 
   i_parameter <- rep(NA, 7)
-  i_parameter[1] <- ncol(x_l)
-  i_parameter[2] <- i_parameter[1] + 1
-  i_parameter[3] <- i_parameter[1] + ncol(x_aem)
-  i_parameter[4] <- i_parameter[1] + ncol(x_aem) + 1
-  i_parameter[5] <- 2 * i_parameter[1] + ncol(x_aem)
-  i_parameter[6] <- 2 * i_parameter[1] + ncol(x_aem) + 1
-  i_parameter[7] <- 2 * i_parameter[1] + 2 * ncol(x_aem)
+  i_parameter <- calc_i_parameter(i_parameter,x_l,x_a)
   one <- rep(1, nrow(x_l))
-
-  epsilon0 <- epsilon[a == 0]
-  epsilon1 <- epsilon[a == 1]
 
   alpha_beta <- NULL
 
@@ -228,11 +205,9 @@ estimating_equation_partial <- function(
     alpha_beta[i_parameter[4]:i_parameter[7]] <- alpha_beta_partial
   }
 
-  pred <- calc_pred(alpha_beta,x_em,x_l,offset,epsilon0,epsilon1,one,i_parameter[1],estimand,optim.method,prob.bound,initial_pred)
-  # pred = (p_10||p_20||p_11||p_21)
-
-  ey_1 <- pred[,3]*a + pred[,1]*(one - a)
-  ey_2 <- pred[,4]*a + pred[,2]*(one - a)
+  pred <- calc_pred(alpha_beta,x_a,x_l,offset,epsilon,estimand,optim.method,prob.bound,initial_pred)
+  ey_1 <- pred[,1]
+  ey_2 <- pred[,2]
 
   v11 <- ey_1 * (1 - ey_1)
   v12 <- -ey_1 * ey_2
@@ -284,8 +259,7 @@ estimating_equation_partial <- function(
     y_0_ = y_0_,
     y_1_ = y_1_,
     y_2_ = y_2_,
-    a = a,
-    a_interaction = a_interaction,
+    x_a = x_a,
     x_l = x_l,
     x_la = x_la,
     ip_weight = ip_weight,
@@ -306,15 +280,15 @@ calc_cov <- function(objget_results, estimand, prob.bound)
   y_1 <- objget_results$y_1
   y_2 <- objget_results$y_2
   a <- objget_results$a
-  a_interaction <- objget_results$a_interaction
+  x_a <- objget_results$x_a
   x_l <- objget_results$x_l
   x_la <- objget_results$x_la
   i_parameter <- objget_results$i_parameter
   n <- length(t)
   one <- rep(1, n)
 
-  ey_1		= pred[,3]*a + pred[,1]*(one-a);
-  ey_2		= pred[,4]*a + pred[,2]*(one-a);
+  ey_1		= pred[,1]
+  ey_2		= pred[,2]
 
   censoring_dna	<- d_nelsonaalen(t,y_0_)
   censoring_martingale <- diag(y_0_) - (outer(t, t, ">") * censoring_dna)
@@ -347,7 +321,7 @@ calc_cov <- function(objget_results, estimand, prob.bound)
   total_score <- cbind(AB1, AB2)
   cov_AB <- crossprod(total_score,total_score) / n
 
-  calc_d_out <- calc_d(pred, a, a_interaction, x_l, estimand, prob.bound)
+  calc_d_out <- calc_d(pred, a, x_a, x_l, estimand, prob.bound)
   hesse_d11 <- crossprod(x_la, w11 * calc_d_out$d_11) / n
   hesse_d12 <- crossprod(x_la, w12 * calc_d_out$d_12) / n
   hesse_d22 <- crossprod(x_la, w22 * calc_d_out$d_22) / n
@@ -363,7 +337,7 @@ calc_cov <- function(objget_results, estimand, prob.bound)
   return(list(cov_estimated = cov_estimated, score_function = total_score, influence_function = influence_function))
 }
 
-calc_d <- function(pred, a, a_interaction, x_l, estimand, prob.bound) {
+calc_d <- function(pred, a, x_a, x_l, estimand, prob.bound) {
   pred_1 <- ifelse(pred[, 1] == 0, prob.bound, ifelse(pred[, 1] == 1, 1 - prob.bound, pred[, 1]))
   pred_2 <- ifelse(pred[, 2] == 0, prob.bound, ifelse(pred[, 2] == 1, 1 - prob.bound, pred[, 2]))
   pred_3 <- ifelse(pred[, 3] == 0, prob.bound, ifelse(pred[, 3] == 1, 1 - prob.bound, pred[, 3]))
@@ -409,9 +383,9 @@ calc_d <- function(pred, a, a_interaction, x_l, estimand, prob.bound) {
   d_ey_d_beta_12 <- as.vector(d_ey_d_beta_12)
   d_ey_d_beta_22 <- as.vector(d_ey_d_beta_22)
 
-  d_11 <- cbind((d_ey_d_alpha_11 * x_l), (d_ey_d_beta_11 * a_interaction))
-  d_12 <- cbind((d_ey_d_alpha_12 * x_l), (d_ey_d_beta_12 * a_interaction))
-  d_22 <- cbind((d_ey_d_alpha_22 * x_l), (d_ey_d_beta_22 * a_interaction))
+  d_11 <- cbind((d_ey_d_alpha_11 * x_l), (d_ey_d_beta_11 * x_a))
+  d_12 <- cbind((d_ey_d_alpha_12 * x_l), (d_ey_d_beta_12 * x_a))
+  d_22 <- cbind((d_ey_d_alpha_22 * x_l), (d_ey_d_beta_22 * x_a))
   #  d_11 <- cbind((d_ey_d_alpha_11 * x_l), (d_ey_d_beta_11 * a))
   #  d_12 <- cbind((d_ey_d_alpha_12 * x_l), (d_ey_d_beta_12 * a))
   #  d_22 <- cbind((d_ey_d_alpha_22 * x_l), (d_ey_d_beta_22 * a))
@@ -460,35 +434,24 @@ estimating_equation_survival <- function(
   y_1_ <- ifelse(epsilon == 1, 1, 0)
 
   a_ <- as.factor(data[[exposure]])
-  a <- model.matrix(~ a_)[, 2]
-  effect.modifier <- NULL
-  one <- rep(1, length(t))
-  if (!is.null(effect.modifier)) {
-    em <- data[[effect.modifier]]
-    a_interaction <- as.matrix(cbind(a, a*em))
-    x_em <- as.matrix(cbind(one, em))
-  } else {
-    a_interaction <- a
-    x_em <- as.matrix(one)
-  }
+  #  a <- model.matrix(~ a_)[, -1]
+  #  a_interaction <- a
+  x_a <- as.matrix(model.matrix(~ a_)[, -1])
   x_l <- model.matrix(Terms, mf)
-  x_la <- cbind(x_l, a_interaction)
+  x_la <- cbind(x_l, x_a)
 
   i_parameter <- rep(NA, 3)
   i_parameter[1] <- ncol(x_l)
   i_parameter[2] <- i_parameter[1] + 1
-  i_parameter[3] <- i_parameter[1] + ncol(x_em)
+  i_parameter[3] <- i_parameter[1] + ncol(x_a)
   one <- rep(1, nrow(x_l))
 
-  epsilon0 <- epsilon[a == 0]
-  epsilon1 <- epsilon[a == 1]
-
-  pred <- calc_pred_survival(alpha_beta, x_l, offset, estimand) # Effct modification not allowed
-  ey_1 <- pred[,2]*a + pred[,1]*(one - a)
+  pred <- calc_pred_survival(alpha_beta, x_a, x_l, offset, estimand) # Effct modification not allowed
+  ey_1 <- pred[,1]
   w11 <- 1 / (ey_1 * (1 - ey_1))
   wy_1 <- ip_weight * y_1
   wy_1ey_1 <- w11*(wy_1 - ey_1)
-  d <- cbind(x_l, a_interaction)
+  d <- cbind(x_l, x_a)
   residual <- wy_1ey_1
   ret <- as.vector(t(d) %*% residual / nrow(d))
 
@@ -509,8 +472,7 @@ estimating_equation_survival <- function(
     y_1 = y_1,
     y_0_ = y_0_,
     y_1_ = y_1_,
-    a = a,
-    a_interaction = a_interaction,
+    x_a = x_a,
     x_l = x_l,
     x_la = x_la,
     ip_weight = ip_weight,
@@ -528,14 +490,14 @@ calc_cov_survival <- function(objget_results, estimand, prob.bound)
   y_0_ <- objget_results$y_0_
   y_1 <- objget_results$y_1
   a <- objget_results$a
-  a_interaction <- objget_results$a_interaction
+  x_a <- objget_results$x_a
   x_l <- objget_results$x_l
   x_la <- objget_results$x_la
   i_parameter <- objget_results$i_parameter
   n <- length(t)
   one <- rep(1, n)
 
-  ey_1		= pred[,2]*a + pred[,1]*(one-a);
+  ey_1		= pred[,1]
   censoring_dna	<- d_nelsonaalen(t,y_0_)
   censoring_martingale <- diag(y_0_) - (outer(t, t, ">") * censoring_dna)
   censoring_km <- kaplan_meier(t, y_0_)
@@ -560,7 +522,7 @@ calc_cov_survival <- function(objget_results, estimand, prob.bound)
   total_score <- AB1
   cov_AB <- crossprod(total_score,total_score) / n
 
-  calc_d_out <- calc_d_survival(pred, a, a_interaction, x_l, estimand, prob.bound)
+  calc_d_out <- calc_d_survival(pred, a, x_a, x_l, estimand, prob.bound)
   hesse <- crossprod(x_la, w11 * calc_d_out) / n
   #  cov_estimated_ <- solve(hesse) %*% cov_AB %*% t(solve(hesse)) / n
   influence_function <- total_score %*% t(solve(hesse))
@@ -569,7 +531,7 @@ calc_cov_survival <- function(objget_results, estimand, prob.bound)
   return(list(cov_estimated = cov_estimated, score_function = total_score, influence_function = influence_function))
 }
 
-calc_d_survival <- function(pred, a, a_interaction, x_l, estimand, prob.bound) {
+calc_d_survival <- function(pred, a, x_a, x_l, estimand, prob.bound) {
   pred_1 <- ifelse(pred[, 1] == 0, prob.bound, ifelse(pred[, 1] == 1, 1 - prob.bound, pred[, 1]))
   pred_2 <- ifelse(pred[, 2] == 0, prob.bound, ifelse(pred[, 2] == 1, 1 - prob.bound, pred[, 2]))
   a11 <- a12 <- a22 <- NULL
@@ -590,7 +552,7 @@ calc_d_survival <- function(pred, a, a_interaction, x_l, estimand, prob.bound) {
   }
   d_ey_d_beta_11 <- 1 / a11
   d_ey_d_alpha_11 <- 1 / a11
-  d_11 <- cbind((d_ey_d_alpha_11 * x_l), (d_ey_d_beta_11 * a_interaction))
+  d_11 <- cbind((d_ey_d_alpha_11 * x_l), (d_ey_d_beta_11 * x_a))
   return(d_11)
 }
 
@@ -636,33 +598,18 @@ estimating_equation_proportional <- function(
     offset <- rep(0, length(t))
   }
 
-  y_0_ <- ifelse(epsilon == 0, 1, 0) # ?ł??؂??ϐ?
+  y_0_ <- ifelse(epsilon == 0, 1, 0)
   y_1_ <- ifelse(epsilon == 1, 1, 0)
   y_2_ <- ifelse(epsilon == 2, 1, 0)
 
   a_ <- as.factor(data[[exposure]])
-  a <- model.matrix(~ a_)[, 2]
-  effect.modifier <- NULL
-  one <- rep(1, length(t))
-  if (!is.null(effect.modifier)) {
-    em <- data[[effect.modifier]]
-    a_interaction <- as.matrix(cbind(a, a*em))
-    x_em <- as.matrix(cbind(one, em))
-  } else {
-    a_interaction <- a
-    x_em <- as.matrix(one)
-  }
+#  a <- model.matrix(~ a_)[, -1]
+#  a_interaction <- a
+  x_a <- as.matrix(model.matrix(~ a_)[, -1])
   x_l <- model.matrix(Terms, mf)
-
-  i_parameter <- rep(NA, 7)
-  i_parameter[1] <- ncol(x_l)
-  i_parameter[2] <- i_parameter[1] + 1
-  i_parameter[3] <- i_parameter[1] + ncol(x_em)
-  i_parameter[4] <- i_parameter[1] + ncol(x_em) + 1
-  i_parameter[5] <- 2 * i_parameter[1] + ncol(x_em)
-  i_parameter[6] <- 2 * i_parameter[1] + ncol(x_em) + 1
-  i_parameter[7] <- 2 * i_parameter[1] + 2 * ncol(x_em)
-  i_parameter[8] <- length(time.point)*(i_parameter[7]-2*ncol(x_em)) + 2*ncol(x_em)
+  i_parameter <- rep(NA, 8)
+  i_parameter <- calc_i_parameter(i_parameter,x_l,x_a)
+  i_parameter[8] <- length(time.point)*(i_parameter[7]-2*ncol(x_a)) + 2*ncol(x_a)
   one <- rep(1, nrow(x_l))
 
 #  n_para_1 <- ncol(x_l)
@@ -671,9 +618,6 @@ estimating_equation_proportional <- function(
 #  n_para_4 <- 2*n_para_1 + 1
 #  n_para_5 <- 2*n_para_1 + 2
 #  n_para_6 <- length(time.point)*(n_para_5-2) + 2
-
-  epsilon0 <- epsilon[a == 0]
-  epsilon1 <- epsilon[a == 1]
 
   score_beta <- NULL
   score_alpha1 <- 0
@@ -697,11 +641,9 @@ estimating_equation_proportional <- function(
     y_1 <- ifelse(epsilon == 1 & t <= specific.time, 1, 0)
     y_2 <- ifelse(epsilon == 2 & t <= specific.time, 1, 0)
 
-    pred <- calc_pred(alpha_beta_i,x_em,x_l,offset,epsilon0,epsilon1,one,i_parameter[1],estimand,optim.method,prob.bound,initial_pred)
-    # pred = (p_10||p_20||p_11||p_21)
-
-    ey_1 <- pred[,3]*a + pred[,1]*(one - a)
-    ey_2 <- pred[,4]*a + pred[,2]*(one - a)
+    pred <- calc_pred(alpha_beta_i,x_a,x_l,offset,epsilon,estimand,optim.method,prob.bound,initial_pred)
+    ey_1 <- pred[,1]
+    ey_2 <- pred[,2]
 
     v11 <- ey_1 * (1 - ey_1)
     v12 <- -ey_1 * ey_2
@@ -718,7 +660,7 @@ estimating_equation_proportional <- function(
     wy_1ey_1 <- w11*(wy_1 - ey_1) + w12*(wy_2 - ey_2)
     wy_2ey_2 <- w12*(wy_1 - ey_1) + w22*(wy_2 - ey_2)
 
-    x_la <- cbind(x_l, a_interaction)
+    x_la <- cbind(x_l, x_a)
     zero <- matrix(0, nrow=nrow(x_la), ncol=ncol(x_la))
     tmp1 <- cbind(x_la, zero)
     tmp2 <- cbind(zero, x_la)

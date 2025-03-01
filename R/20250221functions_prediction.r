@@ -1,30 +1,22 @@
 calc_pred <- function(
     alpha_beta_tmp,
-    x_em, x_l, offset,
-    epsilon0, epsilon1,
-    one,
-    n_para_1,
+    x_a, x_l, offset,
+    epsilon,
     estimand,
     optim.method,
     prob.bound,
     initial_pred = NULL
 ) {
   i_parameter <- rep(NA, 7)
-  i_parameter[1] <- ncol(x_l)
-  i_parameter[2] <- i_parameter[1] + 1
-  i_parameter[3] <- i_parameter[1] + ncol(x_em)
-  i_parameter[4] <- i_parameter[1] + ncol(x_em) + 1
-  i_parameter[5] <- 2 * i_parameter[1] + ncol(x_em)
-  i_parameter[6] <- 2 * i_parameter[1] + ncol(x_em) + 1
-  i_parameter[7] <- 2 * i_parameter[1] + 2 * ncol(x_em)
+  i_parameter <- calc_i_parameter(i_parameter,x_l,x_a)
   alpha_1 <- alpha_beta_tmp[1:i_parameter[1]]
   beta_1  <- alpha_beta_tmp[i_parameter[2]:i_parameter[3]]
   alpha_2 <- alpha_beta_tmp[i_parameter[4]:i_parameter[5]]
   beta_2  <- alpha_beta_tmp[i_parameter[6]:i_parameter[7]]
   alpha_tmp_1_vals <- x_l %*% as.matrix(alpha_1) + offset
   alpha_tmp_2_vals <- x_l %*% as.matrix(alpha_2) + offset
-  beta_tmp_1_vals  <- x_em %*% as.matrix(beta_1)
-  beta_tmp_2_vals  <- x_em %*% as.matrix(beta_2)
+  beta_tmp_1_vals  <- x_a %*% as.matrix(beta_1)
+  beta_tmp_2_vals  <- x_a %*% as.matrix(beta_2)
 
   pred_list <- vector("list", nrow(x_l))
 
@@ -42,13 +34,12 @@ calc_pred <- function(
     if (!is.null(initial_pred)) {
       log_p0 <- log(initial_pred[i_x, ])
     } else {
-      n_epsilon0 <- length(epsilon0)
-      n_epsilon1 <- length(epsilon1)
+      n_epsilon <- length(epsilon)
       p0 <- c(
-        sum(epsilon0 == 1) / n_epsilon0 + prob.bound,
-        sum(epsilon0 == 2) / n_epsilon0 + prob.bound,
-        sum(epsilon1 == 1) / n_epsilon1 + prob.bound,
-        sum(epsilon1 == 2) / n_epsilon1 + prob.bound
+        sum(epsilon == 1) / n_epsilon + prob.bound,
+        sum(epsilon == 2) / n_epsilon + prob.bound,
+        sum(epsilon == 1) / n_epsilon + prob.bound,
+        sum(epsilon == 2) / n_epsilon + prob.bound
       )
       log_p0 <- log(p0)
     }
@@ -103,160 +94,27 @@ calc_pred <- function(
       prev_pred <- pred_list[[i_x]]
     }
   }
+#  pred_observed <- matrix(NA,nrow(x_l),2)
+#  for (i_x in seq_len(nrow(x_l))) {
+#    tmp1 <- pred_list[[i_x]]
+#    tmp2 <- cbind(1-sum(x_a[i_x,]),x_a[i_x,])
+#    pred_observed[i_x,1] <- tmp2 %*% tmp1[1:(length(tmp1)/2)]
+#    pred_observed[i_x,2] <- tmp2 %*% tmp1[(length(tmp1)/2+1):length(tmp1)]
+#  }
   out <- do.call(rbind, pred_list)
   return(out)
+  #  return(pred_observed)
 }
-
-estimating_equation_no_log_pred <- function(
-    pred,
-    alpha_tmp_1, beta_tmp_1,
-    alpha_tmp_2, beta_tmp_2,
-    estimand, optim.method, prob.bound
-) {
-  objective_function <- function(pred) {
-    ret <- numeric(4)
-
-    clamp_p <- function(p) {
-      if (p < prob.bound) {
-        return(prob.bound)
-      } else if ((1 - p) < prob.bound) {
-        return(1 - prob.bound)
-      } else {
-        return(p)
-      }
-    }
-    pred1 <- clamp_p(pred[1])
-    pred2 <- clamp_p(pred[2])
-    pred3 <- clamp_p(pred[3])
-    pred4 <- clamp_p(pred[4])
-
-    if ((1 - pred[1] - pred[2] < prob.bound) |
-        (1 - pred[3] - pred[4] < prob.bound)) {
-      p0102 <- prob.bound
-    } else {
-      p01   <- abs(1 - pred1 - pred2)
-      p02   <- abs(1 - pred3 - pred4)
-      p0102 <- p01*p02
-    }
-
-    if (estimand$effect.measure1 == 'RR') {
-      ret[1] <- exp(alpha_tmp_1) - pred1*pred3/p0102
-      ret[2] <- exp(beta_tmp_1)  - pred3/pred1
-    } else if (estimand$effect.measure1 == 'OR') {
-      ret[1] <- exp(alpha_tmp_1) - pred1*pred3/p0102
-      ret[2] <- exp(beta_tmp_1)  - pred3/(1 - pred3)/pred1*(1 - pred1)
-    } else if (estimand$effect.measure1 == 'SHR') {
-      ret[1] <- exp(alpha_tmp_1) - (pred1*pred3/p0102)
-      ret[2] <- exp(beta_tmp_1) - ( log(1 - pred3) / log(1 - pred1) )
-    } else {
-      stop("Invalid effect_measure. Must be RR, OR or SHR.")
-    }
-
-    if (estimand$effect.measure2 == 'RR') {
-      ret[3] <- exp(alpha_tmp_2) - (pred2*pred4/p0102)
-      ret[4] <- exp(beta_tmp_2)  - (pred4/pred2)
-    } else if (estimand$effect.measure2 == 'OR') {
-      ret[3] <- exp(alpha_tmp_2) - (pred2*pred4/p0102)
-      ret[4] <- exp(beta_tmp_2)  - pred4/(1 - pred4)/pred2*(1 - pred2)
-    } else if (estimand$effect.measure2 == 'SHR') {
-      ret[3] <- exp(alpha_tmp_2) - (pred2*pred4/p0102)
-      ret[4] <- exp(beta_tmp_2) - ( log(1 - pred4) / log(1 - pred2) )
-    } else {
-      stop("Invalid effect_measure. Must be RR, OR or SHR.")
-    }
-    if (optim.method$inner.optim.method == 'multiroot'){
-      return(ret)
-    } else {
-      return(sum(ret^2))
-    }
-  }
-  return(objective_function(pred))
-}
-
-estimating_equation_pred_old <- function(
-    log_p,
-    alpha_tmp_1, beta_tmp_1,
-    alpha_tmp_2, beta_tmp_2,
-    estimand, optim.method, prob.bound
-) {
-  objective_function <- function(log_p) {
-    ret <- numeric(4)
-
-    clamp_log_p <- function(lp) {
-      val <- exp(lp)
-      if (val < prob.bound) {
-        return(log(prob.bound))
-      } else if ((1 - val) < prob.bound) {
-        return(log(1 - prob.bound))
-      } else {
-        return(lp)
-      }
-    }
-    log_p1 <- clamp_log_p(log_p[1])
-    log_p2 <- clamp_log_p(log_p[2])
-    log_p3 <- clamp_log_p(log_p[3])
-    log_p4 <- clamp_log_p(log_p[4])
-
-    exp_lp1 <- exp(log_p1)
-    exp_lp2 <- exp(log_p2)
-    exp_lp3 <- exp(log_p3)
-    exp_lp4 <- exp(log_p4)
-
-    if ((1 - exp(log_p[1]) - exp(log_p[2]) < prob.bound) |
-        (1 - exp(log_p[3]) - exp(log_p[4]) < prob.bound)) {
-      lp0102 <- log(prob.bound)
-    } else {
-      lp01   <- log(abs(1 - exp_lp1 - exp_lp2))
-      lp02   <- log(abs(1 - exp_lp3 - exp_lp4))
-      lp0102 <- lp01 + lp02
-    }
-
-    if (estimand$effect.measure1 == 'RR') {
-      ret[1] <- alpha_tmp_1 - log_p1 - log_p3 + lp0102
-      ret[2] <- beta_tmp_1  - log_p3 + log_p1
-    } else if (estimand$effect.measure1 == 'OR') {
-      ret[1] <- alpha_tmp_1 - log_p1 - log_p3 + lp0102
-      ret[2] <- beta_tmp_1  - log_p3 + log_p1 +
-        log(1 - exp_lp3) - log(1 - exp_lp1)
-    } else if (estimand$effect.measure1 == 'SHR') {
-      ret[1] <- alpha_tmp_1 - log_p1 - log_p3 + lp0102
-      ret[2] <- exp(beta_tmp_1) - ( log(1 - exp_lp3) / log(1 - exp_lp1) )
-    } else {
-      stop("Invalid effect_measure. Must be RR, OR or SHR.")
-    }
-
-    if (estimand$effect.measure2 == 'RR') {
-      ret[3] <- alpha_tmp_2 - log_p2 - log_p4 + lp0102
-      ret[4] <- beta_tmp_2  - log_p4 + log_p2
-    } else if (estimand$effect.measure2 == 'OR') {
-      ret[3] <- alpha_tmp_2 - log_p2 - log_p4 + lp0102
-      ret[4] <- beta_tmp_2  - log_p4 + log_p2 +
-        log(1 - exp_lp4) - log(1 - exp_lp2)
-    } else if (estimand$effect.measure2 == 'SHR') {
-      ret[3] <- alpha_tmp_2 - log_p2 - log_p4 + lp0102
-      ret[4] <- exp(beta_tmp_2) - ( log(1 - exp_lp4) / log(1 - exp_lp2) )
-    } else {
-      stop("Invalid effect_measure. Must be RR, OR or SHR.")
-    }
-    if (optim.method$inner.optim.method == 'multiroot'){
-      return(ret)
-    } else {
-      return(sum(ret^2))
-    }
-  }
-  return(objective_function(log_p))
-}
-
-
 
 estimating_equation_pred <- function(
-    log_p,                 # c(log_p10, log_p20, log_p11, log_p21)
+    log_p,      # c(log_p10, log_p20, log_p11, log_p21) > c(log_p10, log_p11, log_p20, log_p21)
     alpha_tmp_1, beta_tmp_1,
     alpha_tmp_2, beta_tmp_2,
     estimand, optim.method, prob.bound
 ) {
   objective_function <- function(log_p) {
-    ret <- numeric(4)
+    ret <- numeric(length(log_p))
+    clog_p <- numeric(length(log_p))
 
     clamp_log_p <- function(lp) {
       val <- exp(lp)
@@ -268,62 +126,81 @@ estimating_equation_pred <- function(
         return(lp)
       }
     }
-    log_p1 <- clamp_log_p(log_p[1])
-    log_p2 <- clamp_log_p(log_p[2])
-    log_p3 <- clamp_log_p(log_p[3])
-    log_p4 <- clamp_log_p(log_p[4])
-
-    exp_lp1 <- exp(log_p1)
-    exp_lp2 <- exp(log_p2)
-    exp_lp3 <- exp(log_p3)
-    exp_lp4 <- exp(log_p4)
-
-    if ((1 - exp(log_p[1]) - exp(log_p[2]) < prob.bound) |
-        (1 - exp(log_p[3]) - exp(log_p[4]) < prob.bound)) {
-      lp0102 <- log(prob.bound)
-    } else {
-      lp01   <- log(abs(1 - exp_lp1 - exp_lp2))
-      lp02   <- log(abs(1 - exp_lp3 - exp_lp4))
-      lp0102 <- lp01 + lp02
+    for (i in seq_len(length(log_p))) {
+      clog_p[i] <- clamp_log_p(log_p[i])
     }
 
-    if (estimand$effect.measure1 == 'RR') {
-      ret[1] <- alpha_tmp_1 - log_p1 - log_p3 + lp0102
-      ret[2] <- beta_tmp_1  - log_p3 + log_p1
-    } else if (estimand$effect.measure1 == 'OR') {
-      ret[1] <- alpha_tmp_1 - log_p1 - log_p3 + lp0102
-      ret[2] <- beta_tmp_1  - log_p3 + log_p1 +
-        log(1 - exp_lp3) - log(1 - exp_lp1)
-    } else if (estimand$effect.measure1 == 'SHR') {
-      ret[1] <- alpha_tmp_1 - log_p1 - log_p3 + lp0102
-      ret[2] <- exp(beta_tmp_1) - ( log(1 - exp_lp3) / log(1 - exp_lp1) )
-    } else {
-      stop("Invalid effect_measure. Must be RR, OR or SHR.")
-    }
+    log_rr1 <- log_p[2:(length(clog_p)/2)]/clog_p[1]
+    log_rr2 <- log_p[(length(clog_p)/2+2):length(clog_p)]/clog_p[length(clog_p)/2+1]
+    plor_1n <- sum(clog_p[1:(length(clog_p)/2)])
+    plor_2n <- sum(clog_p[(length(clog_p)/2+1):length(clog_p)])
+    p <- exp(clog_p)
+    p01 <- 1-sum(p[1:(length(clog_p)/2)])
+    p02 <- 1-sum(p[(length(clog_p)/2+1):length(clog_p)])
+    log_p01 <- log(p01)
+    log_p02 <- log(p02)
+    plor_d <- log_p01 + log_p02
 
-    if (estimand$effect.measure2 == 'RR') {
-      ret[3] <- alpha_tmp_2 - log_p2 - log_p4 + lp0102
-      ret[4] <- beta_tmp_2  - log_p4 + log_p2
-    } else if (estimand$effect.measure2 == 'OR') {
-      ret[3] <- alpha_tmp_2 - log_p2 - log_p4 + lp0102
-      ret[4] <- beta_tmp_2  - log_p4 + log_p2 +
-        log(1 - exp_lp4) - log(1 - exp_lp2)
-    } else if (estimand$effect.measure2 == 'SHR') {
-      ret[3] <- alpha_tmp_2 - log_p2 - log_p4 + lp0102
-      ret[4] <- exp(beta_tmp_2) - ( log(1 - exp_lp4) / log(1 - exp_lp2) )
-    } else {
-      stop("Invalid effect_measure. Must be RR, OR or SHR.")
-    }
-    if (optim.method$inner.optim.method == 'multiroot'){
-      return(ret)
-    } else {
-      return(sum(ret^2))
-    }
+    if ((1 - sum(p[1:(length(clog_p)/2)]) < prob.bound) |
+      (1 - sum(p[(length(clog_p)/2+1):length(clog_p)]) < prob.bound)) {
+        plor_d <- log(prob.bound)
+        #      lp0102 <- log(prob.bound)
+      } else {
+        p01 <- 1-sum(p[1:(length(clog_p)/2)])
+        p02 <- 1-sum(p[(length(clog_p)/2+1):length(clog_p)])
+        log_p01 <- log(p01)
+        log_p02 <- log(p02)
+        plor_d <- log_p01 + log_p02
+      }
+    plor_1 <- plor_1n - plor_d
+    plor_2 <- plor_2n - plor_d
+
+    log_p1 <- (log_p[1])
+    log_p2 <- (log_p[2])
+    log_p3 <- (log_p[3])
+    log_p4 <- (log_p[4])
+
+if (estimand$effect.measure1 == 'RR') {
+  #ret[1] <- alpha_tmp_1 - plor_1
+  #ret[2] <- beta_tmp_1  - log_rr1
+        ret[1] <- alpha_tmp_1 - log_p1 - log_p2 + plor_d
+        ret[2] <- beta_tmp_1  - log_p2 + log_p1
+  #      ret[1] <- alpha_tmp_1 - log_p1 - log_p3 + lp0102
+  #      ret[2] <- beta_tmp_1  - log_p3 + log_p1
+} else if (estimand$effect.measure1 == 'OR') {
+  ret[1] <- alpha_tmp_1 - plor_1
+  ret[2] <- beta_tmp_1  - log_p3 + log_p1 + log(1 - exp_lp3) - log(1 - exp_lp1)
+} else if (estimand$effect.measure1 == 'SHR') {
+  ret[1] <- alpha_tmp_1 - plor_1
+  ret[2] <- exp(beta_tmp_1) - ( log(1 - exp_lp3) / log(1 - exp_lp1) )
+} else {
+  stop("Invalid effect_measure. Must be RR, OR or SHR.")
+}
+
+if (estimand$effect.measure2 == 'RR') {
+  #ret[3] <- alpha_tmp_2 - plor_2
+  #ret[4] <- beta_tmp_2  - log_rr2
+  ret[3] <- alpha_tmp_1 - log_p3 - log_p4 + plor_d
+  ret[4] <- beta_tmp_1  - log_p4 + log_p3
+} else if (estimand$effect.measure2 == 'OR') {
+  ret[3] <- alpha_tmp_2 - plor_2
+  ret[4] <- beta_tmp_2  - log_p4 + log_p2 + log(1 - exp_lp4) - log(1 - exp_lp2)
+} else if (estimand$effect.measure2 == 'SHR') {
+  ret[3] <- alpha_tmp_2 - plor_2
+  ret[4] <- exp(beta_tmp_2) - ( log(1 - exp_lp4) / log(1 - exp_lp2) )
+} else {
+  stop("Invalid effect_measure. Must be RR, OR or SHR.")
+}
+if (optim.method$inner.optim.method == 'multiroot'){
+  return(ret)
+} else {
+  return(sum(ret^2))
+}
   }
   return(objective_function(log_p))
 }
 
-calc_pred_survival <- function(alpha_beta, x_l, offset, estimand) {
+calc_pred_survival <- function(alpha_beta, x_a, x_l, offset, estimand) {
   if (estimand$effect.measure1 == 'RR') {
     one <- rep(1, nrow(x_l))
     n_para_1 <- ncol(x_l)

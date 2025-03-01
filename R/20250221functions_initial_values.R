@@ -37,8 +37,14 @@ calc_initial_values <- function(
     stop("Variables contain NA values")
 
   a_ <- as.factor(data[[exposure]])
-  a <- model.matrix(~ a_)[, 2]
+  #  a <- model.matrix(~ a_)[, -1]
+  #  a_interaction <- a
+  x_a <- as.matrix(model.matrix(~ a_)[, -1])
+  a <- as.matrix(model.matrix(~ a_)[, -1])  # 消す
+#  one <- rep(1, length(t))
+#  x_em <- as.matrix(one)
   x_l <- model.matrix(Terms, mf)
+#  x_la <- cbind(x_l, x_a)
   n_para_1 <- ncol(x_l)
 
   if (!is.null(data.initlal.values)) {
