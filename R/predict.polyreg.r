@@ -2,7 +2,6 @@
 #'
 #' @param formula formula Model formula representing outcome, exposure and covariates
 #' @param exposure character Column name representing the exposure (1 = exposed, 0 = not exposed).
-#' @param effect.modifier character Column name representing an effect.modifier.
 #' @param data data.frame Input dataset containing survival data.
 #' @param coefficient numeric The coefficient of direct polynomial regression.
 #' @param effect.measure1 character Specifies the effect measure for event (RR, OR, SHR).
@@ -25,7 +24,6 @@
 predict.polyreg <- function(
     formula,
     exposure,
-    effect.modifier = NULL,
     data,
     coefficient,
     effect.measure1,
@@ -61,6 +59,7 @@ predict.polyreg <- function(
   a <- model.matrix(~ a_)[, 2]
 
   one <- rep(1, nrow(mf))
+  effect.modifier <- NULL
   if (!is.null(effect.modifier)) {
     em <- data[[effect.modifier]]
     a_interaction <- as.matrix(cbind(a, a*em))

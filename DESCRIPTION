@@ -1,15 +1,20 @@
 Package: packagepolyreg
-Title: Pacakge to test polyreg function
+Title: Package to test polyreg function
 Version: 0.0.0.9000
 Authors@R: 
     person("Shiro", "Tanaka", , "gestimation@gmail.com", role = c("aut", "cre"))
-Description: This is a package to test polyreg in a pacakge.
+Description: This is a package to test polyreg in a package.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Suggests: 
+    knitr,
+    rmarkdown,
+    modelsummary,
     testthat (>= 3.0.0)
+Imports: mets, nleqslv
 Config/testthat/edition: 3
 URL: https://github.com/gestimation/packagepolyreg
 BugReports: https://github.com/gestimation/packagepolyreg/issues
+VignetteBuilder: knitr

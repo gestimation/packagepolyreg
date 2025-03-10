@@ -7,45 +7,59 @@
 polyreg(
   nuisance.model,
   exposure,
-  cens.model,
+  strata = NULL,
   data,
+  code.event1 = 1,
+  code.event2 = 2,
+  code.censoring = 0,
+  code.exposure.ref = 0,
   effect.measure1 = "RR",
   effect.measure2 = "RR",
-  time.point,
+  time.point = NULL,
   outcome.type = "COMPETINGRISK",
   conf.level = 0.95,
   outer.optim.method = "nleqslv",
   inner.optim.method = "optim",
   optim.parameter1 = 1e-05,
-  optim.parameter2 = 100,
-  optim.parameter3 = 1e-05,
-  optim.parameter4 = 20,
-  optim.parameter5 = 1e-05,
-  optim.parameter6 = 200,
-  optim.parameter7 = 1e-07,
-  optim.parameter8 = 200,
-  data.initlal.values = NULL,
-  covariate.normalization = TRUE,
-  sort.data = TRUE,
-  prob.bound = 1e-05
+  optim.parameter2 = 20,
+  optim.parameter3 = 100,
+  optim.parameter4 = 1e-05,
+  optim.parameter5 = 200,
+  optim.parameter6 = 1e-10,
+  optim.parameter7 = 200,
+  data.initial.values = NULL,
+  should.normalize.covariate = TRUE,
+  should.sort.data = TRUE,
+  prob.bound = 1e-05,
+  boot.bca = TRUE,
+  boot.parameter1 = 200,
+  boot.parameter2 = 46
 )
 }
 \arguments{
 \item{nuisance.model}{formula Model formula representing outcome, exposure and covariates}
 
-\item{exposure}{character Column name representing the exposure (1 = exposed, 0 = not exposed).}
+\item{exposure}{character Column name representing the exposure. The exposure variable should be coded with 0 and 1 (e.g. 1 = exposed, 0 = not exposed).}
 
-\item{cens.model}{formula Model formula representing censoring and covariates}
+\item{strata}{character Column name representing the stratification variable for adjustment for dependent censoring. Defaults to NULL}
 
 \item{data}{data.frame Input dataset containing survival data.}
+
+\item{code.event1}{integer Specifies the code of event 1. Defaults to 1.}
+
+\item{code.event2}{integer Specifies the code of event 2. Defaults to 2.}
+
+\item{code.censoring}{integer Specifies the code of censoring. Defaults to 0.}
+
+\item{code.exposure.ref}{integer Specifies the code of the reference category of exposure. Defaults to 0.}
 
 \item{effect.measure1}{character Specifies the effect measure for event (RR, OR, SHR).}
 
 \item{effect.measure2}{character Specifies the effect measure for competing risk (RR, OR, SHR).}
 
-\item{time.point}{numeric The time point(s) for analysis.}
+\item{time.point}{numeric The time point for exposure effects to be estimated.}
 
-\item{outcome.type}{character Specifies the type of outcome (COMPETINGRISK or SURVIVAL).}
+\item{outcome.type}{character Specifies the type of outcome (COMPETINGRISK, SURVIVAL, BINOMIAL and PROPORTIONAL).}
 
 \item{conf.level}{numeric The level for confidence intervals.}
 
@@ -55,37 +69,41 @@ polyreg(
 
 \item{optim.parameter1}{numeric Convergence threshold for outer loop. Defaults to 1e-5.}
 
-\item{optim.parameter2}{integer Maximum number of iterations. Defaults to 100.}
+\item{optim.parameter2}{integer Maximum number of iterations. Defaults to 20.}
 
-\item{optim.parameter3}{numeric}
+\item{optim.parameter3}{numeric Constraint range for parameters. Defaults to 100.}
 
-\item{optim.parameter4}{numeric Constraint range for parameters. Defaults to 20.}
+\item{optim.parameter4}{numeric Convergence threshold for optim in outer loop. Defaults to 1e-5.}
 
-\item{optim.parameter5}{numeric Convergence threshold for optim in outer loop. Defaults to 1e-5.}
+\item{optim.parameter5}{integer Maximum number of iterations for nleqslv/optim in outer loop. Defaults to 200.}
 
-\item{optim.parameter6}{integer Maximum number of iterations for nleqslv/optim in outer loop. Defaults to 200.}
+\item{optim.parameter6}{numeric Convergence threshold for optim in inner loop. Defaults to 1e-10.}
 
-\item{optim.parameter7}{numeric Convergence threshold for optim in inner loop. Defaults to 1e-7.}
+\item{optim.parameter7}{integer Maximum number of iterations for optim in inner loop. Defaults to 200.}
 
-\item{optim.parameter8}{integer Maximum number of iterations for optim in inner loop. Defaults to 200.}
+\item{should.normalize.covariate}{logical Indicates whether covariates are normalized (TRUE = normalize, FALSE = otherwise). Defaults to TRUE.}
 
-\item{data.initlal.values}{data.frame Optional dataset containing initial values. Defaults to NULL.}
-
-\item{covariate.normalization}{logical Indicates whether covariates are normalized (TRUE = normalize, FALSE = otherwise). Defaults to TRUE.}
-
-\item{sort.data}{logical Indicates whether data are initially sorted to reduce computation steps (TRUE = sort, FALSE = otherwise). Defaults to TRUE.}
+\item{should.sort.data}{logical Indicates whether data are initially sorted to reduce computation steps (TRUE = sort, FALSE = otherwise). Defaults to TRUE.}
 
 \item{prob.bound}{numeric Small threshold for clamping probabilities. Defaults to 1e-5.}
+
+\item{boot.bca}{character Specifies the method of bootstrap confidence intervals (TRUE = BCA method, FALSE = normal appriximation).}
+
+\item{boot.parameter1}{numeric Reprecation for bootstrap confidence intervals when outcome.type==PROPORTIONAL.}
+
+\item{boot.parameter2}{numeric Seed used in bootstrap confidence intervals when outcome.type==PROPORTIONAL.}
+
+\item{data.initlal.values}{data.frame Optional dataset containing initial values. Defaults to NULL.}
 }
 \value{
-A list of results from direct polynomial regression. summary meets requirement of msummary function.
+A list of results from direct polynomial regression. coefficient and cov are estimated regression coefficients of exposure and covariates and their variance covariance matrix. summary and summary.full meets requirement of msummary function.
 }
 \description{
 Direct polynomial regression for survival and competing risks analysis
 }
 \examples{
-data(bmt)
-result <- polyreg(nuisance.model = Event(time, cause)~age+tcell, exposure = 'platelet',
-cens.model = Event(time,cause==0)~+1, data = bmt, effect.measure1='RR', effect.measure2='RR', time.point=24, outcome.type='COMPETINGRISK')
-msummary(result$out_summary, statistic = c("conf.int"), exponentiate = TRUE)lo
+data(diabetes.complications)
+output <- polyreg(nuisance.model = Event(t,epsilon)~+1, exposure = 'fruitq1', data = diabetes.complications, effect.measure1='RR', effect.measure2='RR', time.point=8, outcome.type='C')
+library(modelsummary)
+msummary(output$summary, statistic = c("conf.int"), exponentiate = TRUE)
 }

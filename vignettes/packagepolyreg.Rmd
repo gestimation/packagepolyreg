@@ -1,25 +1,23 @@
 ---
-output: github_document
+title: "packagepolyreg"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{packagepolyreg}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
-
-<!-- README.md is generated from README.Rmd. Please edit that file -->
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>",
-  fig.path = "man/figures/README-",
-  out.width = "100%"
+  comment = "#>"
 )
 ```
 
-# polyreg
-
-<!-- badges: start -->
-<!-- badges: end -->
-
 ```{r setup, include=FALSE, warning=FALSE}
+library(devtools)
 devtools::load_all()
+install_github("gestimation/packagepolyreg") 
 #pak::pak("gestimation/polyreg")
 #devtools::install_github("gestimation/polyreg") 
 library(packagepolyreg)
@@ -28,24 +26,17 @@ library(nleqslv)
 library(modelsummary)
 ```
 
-The polyreg package implemets direct polynomial regression to jointly model multiple competing events. It estimates multiplicative effects on cumulative probabilities or risks possibly under right-censoring. The package also supports semiparametric models for common effects over time, direct binomial regression for survival outcome, and Richardson model for binomial outcome, which use a log odds product. 
+## Overview
+
+The polyreg package implemets direct polynomial regression to jointly model multiple competing events. It estimates multiplicative effects on cumulative probabilities or risks possibly under right-censoring. The package also supports direct binomial regression for survival outcome and Richardson model for binomial outcome, which use a log odds product. 
 
 The models in polyreg are specified by three main components:
 
 Nuisance model: Describes the relationship between outcomes and covariates (excluding exposure).
 
-Effect measures and time points: Defines the exposure effect to be estimated and the time point of interest. 
+Effect measures and time points: Defines the exposure effect to be estimated and the time point of interest.
 
 Censoring adjustment: Specifies strata for inverse probability weighting to adjust for dependent censoring.
-
-## Installation
-
-You can install the development version of polyreg from [GitHub](https://github.com/) with:
-
-``` r
-library(devtools)
-install_github("gestimation/packagepolyreg") 
-```
 
 ## Model specification
 ### 1. Nuisance Model
@@ -75,7 +66,6 @@ Effects on a risk of a binomial outcome: 'BINOMIAL'
 Common effects on cumulative incidence probabilities over time: 'PROPORTIONAL'
 
 Covariates included in nuisance.model should adjust for confounding factors to obtain unbiased exposure effect estimates. 
-
 
 ### 2. Effect measures and time points
 
@@ -118,7 +108,7 @@ For the initial illustration, unadjusted analysis focusing on cumulative inciden
 library(packagepolyreg)
 data(diabetes.complications)
 output <- polyreg(nuisance.model = Event(t,epsilon) ~ 1, exposure = 'fruitq1', data = diabetes.complications,
-          effect.measure1='RR', effect.measure2='RR', time.point=8, outcome.type='C')
+          effect.measure1='RR', effect.measure2='RR', time.point=8, outcome.type='COMPETINGRISK')
 print(output$coefficient)
 print(output$cov)
 ```
@@ -156,7 +146,7 @@ Binomial analysis is conducted if outcome.type='BINOMIAL'. Outcomes of observati
 output <- polyreg(nuisance.model = d ~ age+sex+bmi+hba1c+diabetes_duration
           +drug_oha+drug_insulin+sbp+ldl+hdl+tg+current_smoker+alcohol_drinker+ltpa, 
           exposure = 'fruitq1', strata='strata', data = diabetes.complications,
-          effect.measure1='RR', time.point=8, outcome.type='BINOMIAL')
+          effect.measure1='RR', time.point=8, outcome.type='B')
 msummary(output$summary, statistic = c("conf.int"), exponentiate = TRUE)
 ```
 
