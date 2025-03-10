@@ -267,7 +267,7 @@ msummary(output$summary, statistic = c("conf.int"), exponentiate = TRUE)
 | n.parameters         | 16                                       |
 | optimization.message | Function criterion near zero             |
 
-## Example 3. Bionmial analysis
+## Example 3. Binomial analysis
 
 Binomial analysis is conducted if outcome.type=‘BINOMIAL’. Outcomes of
 observations censored before 8 years of follow-up are now treated as

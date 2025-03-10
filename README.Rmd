@@ -148,7 +148,7 @@ Only the regression coefficient of exposure is included in summary, so now model
 msummary(output$summary, statistic = c("conf.int"), exponentiate = TRUE)
 ```
 
-## Example 3. Bionmial analysis
+## Example 3. Binomial analysis
 
 Binomial analysis is conducted if outcome.type='BINOMIAL'. Outcomes of observations censored before 8 years of follow-up are now treated as complication-free. 
 

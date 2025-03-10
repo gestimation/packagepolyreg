@@ -124,7 +124,6 @@ msummary(output$summary.full, statistic = c("conf.int"), exponentiate = TRUE)
 The second example is survival analysis (outcome.type='SURVIVAL') to estimate the effects on the risk of diabetic retinopathy at 8 years of follow-up, treating macrovascular complications as censoring. 15 covariates and censoring strata are specified in nuisance.model= and strata=, respectively.
 
 ```{r example3}
-data(diabetes.complications)
 diabetes.complications$d <- (diabetes.complications$epsilon>0)
 output <- polyreg(nuisance.model = Event(t,d) ~ age+sex+bmi+hba1c+diabetes_duration
           +drug_oha+drug_insulin+sbp+ldl+hdl+tg+current_smoker+alcohol_drinker+ltpa, 
@@ -138,7 +137,7 @@ Only the regression coefficient of exposure is included in summary, so now model
 msummary(output$summary, statistic = c("conf.int"), exponentiate = TRUE)
 ```
 
-## Example 3. Bionmial analysis
+## Example 3. Binomial analysis
 
 Binomial analysis is conducted if outcome.type='BINOMIAL'. Outcomes of observations censored before 8 years of follow-up are now treated as complication-free. 
 
