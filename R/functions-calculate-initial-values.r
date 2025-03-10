@@ -67,7 +67,7 @@ getInitialValues <- function(
   }
 
   binarizeIfContinuous <- function(x) {
-    if (outcome.type == 'SURVIVAL') {
+    if (outcome.type == 'SURVIVAL' | outcome.type == 'BINOMIAL') {
       if (is.numeric(x) & length(unique(x)) > 2) {
         l <- as.numeric((x >= median(x)) == TRUE)
         out <- calculateInitialValuesSurvival(t, epsilon, a, l, estimand, specific.time, prob.bound)
@@ -354,7 +354,8 @@ checkSpell <- function(outcome.type, effect.measure1, effect.measure2) {
     outcome.type.corrected <<- "PROPORTIONAL"
   } else if (outcome.type %in% c("BINOMIAL", "B", "Binomial", "binomial")) {
     outcome.type.corrected <<- "BINOMIAL"
-  } else {
+  }
+  else {
     stop("Invalid input for outcome.type, Choose 'COMPETINGRISK', 'SURVIVAL', 'BINOMIAL', or 'PROPORTIONAL'.")
   }
   if (effect.measure1 %in% c("RR", "rr", "RISK RATIO", "Risk ratio", "risk ratio")) {
