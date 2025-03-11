@@ -28,8 +28,8 @@ library(nleqslv)
 library(modelsummary)
 ```
 
-The polyreg package implemets direct polynomial regression to jointly model multiple competing events. It estimates multiplicative effects on cumulative probabilities or risks possibly under right-censoring. The package also supports semiparametric models for common effects over time, direct binomial regression for survival outcome, and Richardson model for binomial outcome, which use a log odds product. 
-
+The polyreg package implements direct polynomial regression, a model that estimates multiplicative effects (e.g., risk ratio, odds ratio, or sub-distribution hazard ratio) on risks, cumulative incidence probabilities at a specific time point, or common effects over time. A key feature of this model is its ability to analyze multiple competing events simultaneously while ensuring that the probabilities sum to one. This is achieved by reparameterizing nuisance parameters using polytomous log odds products. Additionally, the package supports direct binomial regression for survival outcomes and the Richardson model for binomial outcomes, both of which use log odds products.
+ 
 The models in polyreg are specified by three main components:
 
 Nuisance model: Describes the relationship between outcomes and covariates (excluding exposure).
