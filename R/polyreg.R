@@ -26,8 +26,8 @@
 #' @param should.normalize.covariate logical Indicates whether covariates are normalized (TRUE = normalize, FALSE = otherwise). Defaults to TRUE.
 #' @param should.sort.data logical Indicates whether data are initially sorted to reduce computation steps (TRUE = sort, FALSE = otherwise). Defaults to TRUE.
 #' @param prob.bound numeric Small threshold for clamping probabilities. Defaults to 1e-5.
-#' @param boot.bca character Specifies the method of bootstrap confidence intervals (TRUE = BCA method, FALSE = normal appriximation).
-#' @param boot.parameter1 numeric Reprecation for bootstrap confidence intervals when outcome.type==PROPORTIONAL.
+#' @param boot.bca character Specifies the method of bootstrap confidence intervals (TRUE = BCA method, FALSE = normal approximation).
+#' @param boot.parameter1 integer Number of replicatations for bootstrap confidence intervals when outcome.type==PROPORTIONAL.
 #' @param boot.parameter2 numeric Seed used in bootstrap confidence intervals when outcome.type==PROPORTIONAL.
 #' @importFrom mets phreg Event
 #' @importFrom survival Surv
