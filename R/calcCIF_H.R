@@ -13,7 +13,9 @@ calcCIF_H <- function(
     code.censoring = 0,
     code.exposure.ref= 0,
     devideByExposure = FALSE,
-    drawGraph = TRUE
+    var_method = "Aalen",
+    drawGraph = TRUE,
+    drawGraphCI = TRUE
 ){
   # 曝露変数
   expo_ <- data[[exposure]]
@@ -73,9 +75,24 @@ calcCIF_H <- function(
       }
       CIF1_value[i] <- cum
     }
-    CIF1 <- cbind(event1_time, CIF1_value)
-    # 右端を追加するのをやめた
-    #CIF1 <- rbind(CIF1, t(as.matrix(c(s_time[length(s_time)], CIF1_value[n_1]))))
+    if(var_method == "Aalen"){
+      CIF1_var <- calcAalenVariance(CIF_time = event1_time,
+                                    CIF_value = CIF1_value,
+                                    n.event = n.event1,
+                                    n.atrisk = s_atrisk,
+                                    km_time = s_time,
+                                    km_value = s_surv)
+    }
+    else if(var_method == "Delta"){
+      CIF1_var <- calcDeltaVariance(CIF_time = event1_time,
+                                    CIF_value = CIF1_value,
+                                    n.event = n.event1,
+                                    n.atrisk = s_atrisk,
+                                    km_time = s_time,
+                                    km_value = s_surv)
+    }
+    CIF1_SE <- sqrt(CIF1_var)
+    CIF1 <- cbind(event1_time, CIF1_value, CIF1_SE)
 
     # event2のCIF
     # 横軸はevent2_time
@@ -89,17 +106,57 @@ calcCIF_H <- function(
       }
       CIF2_value[i] <- cum
     }
-    CIF2 <- cbind(event2_time, CIF2_value)
-    # 右端を追加するのをやめた
-    #CIF2 <- rbind(CIF2, t(as.matrix(c(s_time[length(s_time)], CIF2_value[n_2]))))
+    if(var_method == "Aalen"){
+      CIF2_var <- calcAalenVariance(CIF_time = event2_time,
+                                    CIF_value = CIF2_value,
+                                    n.event = n.event2,
+                                    n.atrisk = s_atrisk,
+                                    km_time = s_time,
+                                    km_value = s_surv)
+    }
+    else if(var_method == "Delta"){
+      CIF2_var <- calcDeltaVariance(CIF_time = event2_time,
+                                    CIF_value = CIF2_value,
+                                    n.event = n.event2,
+                                    n.atrisk = s_atrisk,
+                                    km_time = s_time,
+                                    km_value = s_surv)
+    }
+    CIF2_SE <- sqrt(CIF2_var)
+    CIF2 <- cbind(event2_time, CIF2_value, CIF2_SE)
 
-    if(drawGraph){
+    if(drawGraph && drawGraphCI){
+      # プロットの枠を作成
+      plot(CIF1[,1], CIF1[,2], type = "s", main = "Cumulative Incidence Function",
+           xlab = "Time", ylab = "Cumulative Incidence", col = "blue", lwd = 2,
+           ylim = c(0, max(CIF1[,2] + 1.96 * CIF1[,3], CIF2[,2] + 1.96 * CIF2[,3])))
+
+      # 青線の信頼区間（CIF1）
+      polygon(c(CIF1[,1], rev(CIF1[,1])),
+              c(CIF1[,2] + 1.96 * CIF1[,3], rev(CIF1[,2] - 1.96 * CIF1[,3])),
+              col = rgb(0, 0, 1, 0.2), border = NA)  # 青（透明度 0.2）
+
+      # 赤線の信頼区間（CIF2）
+      polygon(c(CIF2[,1], rev(CIF2[,1])),
+              c(CIF2[,2] + 1.96 * CIF2[,3], rev(CIF2[,2] - 1.96 * CIF2[,3])),
+              col = rgb(1, 0, 0, 0.2), border = NA)  # 赤（透明度 0.2）
+
+      # 元の CIF 曲線
+      lines(CIF1[,1], CIF1[,2], type = "s", col = "blue", lwd = 2)
+      lines(CIF2[,1], CIF2[,2], type = "s", col = "red", lwd = 2)
+
+      # 凡例
+      legend("topleft", legend = c("Event 1", "Event 2"), col = c("blue", "red"), lwd = 2, cex = 0.8)
+    }
+
+    if(drawGraph && !drawGraphCI){
       # 重ねてプロット
       plot(CIF1[,1], CIF1[,2], type = "s", main = "Cumulative Incidence Function",
          xlab = "Time", ylab = "Cumulative Incidence", col = "blue", lwd = 2, ylim = c(0, max(CIF1[,2], CIF2[,2])))
       lines(CIF2[,1], CIF2[,2], type = "s", col = "red", lwd = 2)
       legend("topleft", legend = c("Event 1", "Event 2"), col = c("blue", "red"), lwd = 2, cex = 0.5)
     }
+
     return(list(CIF1 = CIF1, CIF2 = CIF2))
   }
   else{
@@ -163,9 +220,24 @@ calcCIF_H <- function(
       }
       CIF1_value_0[i] <- cum
     }
-    CIF1_0 <- cbind(event1_time_0, CIF1_value_0)
-    # 右端を追加するのをやめた
-    #CIF1_0 <- rbind(CIF1_0, t(as.matrix(c(s_time_0[length(s_time_0)], CIF1_value_0[n_1_0]))))
+    if(var_method == "Aalen"){
+      CIF1_var_0 <- calcAalenVariance(CIF_time = event1_time_0,
+                                    CIF_value = CIF1_value_0,
+                                    n.event = n.event1_0,
+                                    n.atrisk = s_atrisk_0,
+                                    km_time = s_time_0,
+                                    km_value = s_surv_0)
+    }
+    else if(var_method == "Delta"){
+      CIF1_var_0 <- calcDeltaVariance(CIF_time = event1_time_0,
+                                    CIF_value = CIF1_value_0,
+                                    n.event = n.event1_0,
+                                    n.atrisk = s_atrisk_0,
+                                    km_time = s_time_0,
+                                    km_value = s_surv_0)
+    }
+    CIF1_SE_0 <- sqrt(CIF1_var_0)
+    CIF1_0 <- cbind(event1_time_0, CIF1_value_0, CIF1_SE_0)
 
     # event1のCIF(expo == 1)
     # 横軸はevent1_time
@@ -179,9 +251,24 @@ calcCIF_H <- function(
       }
       CIF1_value_1[i] <- cum
     }
-    CIF1_1 <- cbind(event1_time_1, CIF1_value_1)
-    # 右端を追加するのをやめた
-    #CIF1_1 <- rbind(CIF1_1, t(as.matrix(c(s_time_1[length(s_time_1)], CIF1_value_1[n_1_1]))))
+    if(var_method == "Aalen"){
+      CIF1_var_1 <- calcAalenVariance(CIF_time = event1_time_1,
+                                      CIF_value = CIF1_value_1,
+                                      n.event = n.event1_1,
+                                      n.atrisk = s_atrisk_1,
+                                      km_time = s_time_1,
+                                      km_value = s_surv_1)
+    }
+    else if(var_method == "Delta"){
+      CIF1_var_1 <- calcDeltaVariance(CIF_time = event1_time_1,
+                                      CIF_value = CIF1_value_1,
+                                      n.event = n.event1_1,
+                                      n.atrisk = s_atrisk_1,
+                                      km_time = s_time_1,
+                                      km_value = s_surv_1)
+    }
+    CIF1_SE_1 <- sqrt(CIF1_var_1)
+    CIF1_1 <- cbind(event1_time_1, CIF1_value_1, CIF1_SE_1)
 
     # event2のCIF(expo == 0)
     # 横軸はevent2_time
@@ -195,9 +282,24 @@ calcCIF_H <- function(
       }
       CIF2_value_0[i] <- cum
     }
-    CIF2_0 <- cbind(event2_time_0, CIF2_value_0)
-    # 右端を追加するのをやめた
-    #CIF2_0 <- rbind(CIF2_0, t(as.matrix(c(s_time_0[length(s_time_0)], CIF2_value_0[n_2_0]))))
+    if(var_method == "Aalen"){
+      CIF2_var_0 <- calcAalenVariance(CIF_time = event2_time_0,
+                                      CIF_value = CIF2_value_0,
+                                      n.event = n.event2_0,
+                                      n.atrisk = s_atrisk_0,
+                                      km_time = s_time_0,
+                                      km_value = s_surv_0)
+    }
+    else if(var_method == "Delta"){
+      CIF2_var_0 <- calcDeltaVariance(CIF_time = event2_time_0,
+                                      CIF_value = CIF2_value_0,
+                                      n.event = n.event2_0,
+                                      n.atrisk = s_atrisk_0,
+                                      km_time = s_time_0,
+                                      km_value = s_surv_0)
+    }
+    CIF2_SE_0 <- sqrt(CIF2_var_0)
+    CIF2_0 <- cbind(event2_time_0, CIF2_value_0, CIF2_SE_0)
 
     # event2のCIF(expo == 1)
     # 横軸はevent2_time
@@ -211,11 +313,63 @@ calcCIF_H <- function(
       }
       CIF2_value_1[i] <- cum
     }
-    CIF2_1 <- cbind(event2_time_1, CIF2_value_1)
-    # 右端を追加するのをやめた
-    #CIF2_1 <- rbind(CIF2_1, t(as.matrix(c(s_time_1[length(s_time_1)], CIF2_value_1[n_2_1]))))
+    if(var_method == "Aalen"){
+      CIF2_var_1 <- calcAalenVariance(CIF_time = event2_time_1,
+                                      CIF_value = CIF2_value_1,
+                                      n.event = n.event2_1,
+                                      n.atrisk = s_atrisk_1,
+                                      km_time = s_time_1,
+                                      km_value = s_surv_1)
+    }
+    else if(var_method == "Delta"){
+      CIF2_var_1 <- calcDeltaVariance(CIF_time = event2_time_1,
+                                      CIF_value = CIF2_value_1,
+                                      n.event = n.event2_1,
+                                      n.atrisk = s_atrisk_1,
+                                      km_time = s_time_1,
+                                      km_value = s_surv_1)
+    }
+    CIF2_SE_1 <- sqrt(CIF2_var_1)
+    CIF2_1 <- cbind(event2_time_1, CIF2_value_1, CIF2_SE_1)
 
-    if(drawGraph){
+    if(drawGraph && drawGraphCI){
+      ylim_max <- max(CIF1_0[,2] + 1.96 * CIF1_0[,3], CIF1_1[,2] + 1.96 * CIF1_1[,3],
+                      CIF2_0[,2] + 1.96 * CIF2_0[,3], CIF2_1[,2] + 1.96 * CIF2_1[,3])
+
+      plot(CIF1_0[,1], CIF1_0[,2], type = "s", main = "Cumulative Incidence Function",
+           xlab = "Time", ylab = "Cumulative Incidence", col = "blue", lwd = 2, lty = 1, ylim = c(0, ylim_max))
+
+      # 信頼区間の帯を描画
+      polygon(c(CIF1_0[,1], rev(CIF1_0[,1])),
+              c(CIF1_0[,2] + 1.96 * CIF1_0[,3], rev(CIF1_0[,2] - 1.96 * CIF1_0[,3])),
+              col = rgb(0, 0, 1, 0.2), border = NA)  # 青 (expo=0)
+
+      polygon(c(CIF1_1[,1], rev(CIF1_1[,1])),
+              c(CIF1_1[,2] + 1.96 * CIF1_1[,3], rev(CIF1_1[,2] - 1.96 * CIF1_1[,3])),
+              col = rgb(0, 0, 1, 0.1), border = NA)  # 青 (expo=1, 透明度を少し薄く)
+
+      polygon(c(CIF2_0[,1], rev(CIF2_0[,1])),
+              c(CIF2_0[,2] + 1.96 * CIF2_0[,3], rev(CIF2_0[,2] - 1.96 * CIF2_0[,3])),
+              col = rgb(1, 0, 0, 0.2), border = NA)  # 赤 (expo=0)
+
+      polygon(c(CIF2_1[,1], rev(CIF2_1[,1])),
+              c(CIF2_1[,2] + 1.96 * CIF2_1[,3], rev(CIF2_1[,2] - 1.96 * CIF2_1[,3])),
+              col = rgb(1, 0, 0, 0.1), border = NA)  # 赤 (expo=1, 透明度を少し薄く)
+
+      # 累積発生率曲線を重ねて描画
+      lines(CIF1_0[,1], CIF1_0[,2], type = "s", col = "blue", lwd = 2, lty = 1)
+      lines(CIF1_1[,1], CIF1_1[,2], type = "s", col = "blue", lwd = 2, lty = 2)
+      lines(CIF2_0[,1], CIF2_0[,2], type = "s", col = "red", lwd = 2, lty = 1)
+      lines(CIF2_1[,1], CIF2_1[,2], type = "s", col = "red", lwd = 2, lty = 2)
+
+      # 凡例
+      legend("topleft",
+             legend = c("Event 1, expo=0", "Event 1, expo=1", "Event 2, expo=0", "Event 2, expo=1"),
+             col = c("blue", "blue", "red", "red"),
+             lwd = 2, lty = c(1, 2, 1, 2), cex = 0.5)
+    }
+
+    if(drawGraph && !drawGraphCI){
       ylim_max <- max(CIF1_0[,2], CIF1_1[,2], CIF2_0[,2], CIF2_1[,2])
 
       plot(CIF1_0[,1], CIF1_0[,2], type = "s", main = "Cumulative Incidence Function",
@@ -236,6 +390,68 @@ calcCIF_H <- function(
 }
 
 
+
+calcAalenVariance <- function(
+    CIF_time,
+    CIF_value,
+    n.event,
+    n.atrisk,
+    km_time,
+    km_value
+){
+  n <- length(CIF_time)
+  first_term <- rep(NA, n)
+  second_term <- rep(NA, n)
+  third_term <- rep(NA, n)
+  first_cum <- 0
+  second_cum <- 0
+  third_cum <- 0
+  for(i in 1:n){
+    index <- min(length(CIF_value)-1, sum(as.numeric((km_time-CIF_time[i])<0)))
+    if(index!=0){
+      first_cum <- first_cum + ((CIF_value[index+1]-CIF_value[i])^2)*n.event[i]/(n.atrisk[i]-1)/(n.atrisk[i]-n.event[i])
+      second_cum <- second_cum + (km_value[index]^2)*(n.event[i])*(n.atrisk[i]-n.event[i])/(n.atrisk[i]^2)/(n.atrisk[i]-1)
+      third_cum <- third_cum + ((CIF_value[index+1]-CIF_value[i])*km_value[index]*n.event[i]*(n.atrisk[i]-n.event[i])/n.atrisk[i]/(n.atrisk[i]-sum(n.event[1:i]))/(n.atrisk[i]-1))
+    }
+    first_term[i] <- first_cum
+    second_term[i] <- second_cum
+    third_term[i] <- third_cum
+  }
+  return(first_term + second_term -2 * third_term)
+}
+
+calcDeltaVariance <- function(
+    CIF_time,
+    CIF_value,
+    n.event,
+    n.atrisk,
+    km_time,
+    km_value
+){
+  n <- length(CIF_time)
+  first_term <- rep(NA, n)
+  second_term <- rep(NA, n)
+  third_term <- rep(NA, n)
+  first_cum <- 0
+  second_cum <- 0
+  third_cum <- 0
+  for(i in 1:n){
+    index <- min(length(CIF_value)-1, sum(as.numeric((km_time-CIF_time[i])<0)))
+    if(index!=0){
+      first_cum <- first_cum + ((CIF_value[index+1]-CIF_value[i])^2)*n.event[i]/(n.atrisk[i]-1)/(n.atrisk[i]-n.event[i])
+      second_cum <- second_cum + (km_value[index]^2)*(n.event[i])*(n.atrisk[i]-n.event[i])/(n.atrisk[i]^3)
+      third_cum <- third_cum + ((CIF_value[index+1]-CIF_value[i])*km_value[index]*n.event[i]/(n.atrisk[i]^3))
+    }
+    first_term[i] <- first_cum
+    second_term[i] <- second_cum
+    third_term[i] <- third_cum
+  }
+  return(first_term + second_term -2 * third_term)
+}
+
+
+
+
 # test code below
 path = "C:/PROJECT/polyregData/20250210diabetes_dataset.csv"
 jdcs = read.csv(path)
@@ -247,7 +463,5 @@ model2 <- as.formula(model2)
 model3 <- "Event(t,epsilon) ~ age+sex+bmi+hba1c+diabetes_duration+drug_oha+drug_insulin+sbp+ldl+hdl+tg+current_smoker+alcohol_drinker+ltpa"
 model3 <- as.formula(model3)
 
-#CIF_H(nuisance.model = model3, exposure = 'fruitq1',
-#      data = jdcs, devideByExposure = TRUE, drawGraph = TRUE)
-CIF_H(nuisance.model = model3, exposure = 'fruitq1',
-      data = jdcs, devideByExposure = FALSE, drawGraph = TRUE)
+calcCIF_H(nuisance.model = model3, exposure = 'fruitq1',
+      data = jdcs, devideByExposure = FALSE, drawGraph = TRUE, drawGraphCI = FALSE, var_method = "Delta")
