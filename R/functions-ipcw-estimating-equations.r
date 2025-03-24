@@ -543,7 +543,11 @@ calculateKaplanMeier <- function(t, d){
 }
 
 calculateNelsonAalen <- function(t, d) {
+<<<<<<< HEAD
   atrisk <- createAtRiskMatrix(sorted_t)
+=======
+  atrisk <- createAtRiskMatrix(t)
+>>>>>>> 6174e38b4a13281af1d07f5f68282bd5c81993cf
   n_atrisk <- rowSums(atrisk)
   na <- d / n_atrisk
   return(na)
