@@ -248,7 +248,7 @@ design_matrix_s <- model.matrix(out_terms, example3, contrasts.arg = list(strata
 design_matrix_p <- model.matrix(out_terms, example3, contrasts.arg = list(strata_test = "contr.poly"))
 design_matrix_S <- model.matrix(out_terms, example3, contrasts.arg = list(strata_test = "contr.SAS"))
 design_matrix_h <- model.matrix(out_terms, example3, contrasts.arg = list(strata_test = "contr.helmert"))
-print(design_matrix_t)
+print(design_matrix_S)
 
 # フォーミュラから変数xを減らすときは, マイナスを用いて-xと指定する
 # 以下のフォーミュラは切片項を含まないデザイン行列に対応する
