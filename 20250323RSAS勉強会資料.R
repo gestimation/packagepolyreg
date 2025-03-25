@@ -88,6 +88,7 @@ event <- as.numeric(survival_time<=censoring_time)
 km <- calculateKaplanMeier(observed_time, event)
 print(km)
 
+
 ###########################################################################################
 # 補足. データフレーム
 # データフレームは行列と異なり, 数値とテキストを混在することができ, 各行・各列がラベルを持っている
@@ -97,24 +98,38 @@ print(example)
 print(as.matrix(example))
 print(as.numeric(as.matrix(example)))
 
-# データフレームXの列iはX[i]で参照できるが, 変数名xということがわかればX[["x"]]やX$xと書くこともできる
+# データフレームXの列iはX[i]で参照できるが, ラベル（変数名）xということがわかればX[["x"]]やX$xと書くこともできる
 print(example$age)
 print(example[1])
 print(example[["age"]])
+
+# データフレームの行数や列数はnrow関数やncol関数で取得できる
+print(nrow(example))
+print(ncol(example))
+
+# データフレームの行名や列名はrownames関数やcolnames関数で取得できる
+print(rownames(example))
+print(colnames(example))
+
+# データフレームの行名や列名を変更するときはrownames関数やcolnames関数を使って変更する
+colnames(example) <- c("age_in_year", "sex_in_MF", "id")
+print(example)
 
 # order(): 数値またはテキストから順位情報を読み取る関数
 print(order(example$age))
 print(order(example$sex))
 
-# ある要素の順位情報に従ってデータフレームの順番を変えたいときは, order関数が利用できる
+# ある要素の順位情報に従ってデータフレームの順番を変えたいときは, order関数またはsort関数が利用できる
 sorted_data <- example[order(example$age), ]
+print(sorted_data)
 
 
 ###########################################################################################
 # CIF_H（本田さんの関数）
 # packagepolyregを読み込むことでCIF_Hが使用できる
 
-CIF_H(nuisance.model = Event(t,epsilon) ~ +1, exposure = 'fruitq1',data = diabetes.complications)
+CIF_H(nuisance.model = Event(t,epsilon) ~ +1, exposure = 'fruitq1', data = diabetes.complications)
+
 
 ###########################################################################################
 # cif（パッケージmetsの関数）
@@ -123,6 +138,7 @@ out <- cif(Event(t,epsilon) ~ +1, data=diabetes.complications, cause=1)
 par(mfrow=c(1,2))
 bplot(out,se=TRUE)
 
+
 ###########################################################################################
 # 関数について情報を得るにはgetAnywhere関数と?を用いる
 getAnywhere(cif)
@@ -130,6 +146,7 @@ getAnywhere(cif)
 
 getAnywhere(CIF_H)
 ?CIF_H
+
 
 ###########################################################################################
 # テスト用のデータセットを作成
@@ -143,10 +160,12 @@ epsilon_test[10] <- 2
 df_test <- data.frame(id = 1:n_test, t_test = t_test, epsilon_test = epsilon_test, strata_test = strata_test)
 print(df_test)
 
+
 ###########################################################################################
 # CIF_Hのテスト結果
 
 CIF_H(nuisance.model = Event(t_test,epsilon_test) ~ +1, exposure = "t_test", data = df_test)
+
 
 ###########################################################################################
 # cifのテスト結果
@@ -164,7 +183,7 @@ print(cbind(out$mu, out$times))
 # 多くの場合, 左辺はアウトカム, 右辺は共変量
 # データフレームのどの変数を用いるかを指定するときに有用
 
-example1 <- y ~ x1+x2 
+example1 <- y ~ x1+x2
 class(example1)
 print(example1[1])
 print(example1[2])
@@ -172,7 +191,8 @@ print(example1[3])
 
 # CIF_Hでは, フォーミュラ（nuisance.model）から変数名を読み取っている
 # Surv(, )またはEvent(, ): 生存時間アウトカムを表すための関数（パッケージsurvivalまたはmetsに依存するので注意）
-# terms(): 変数名を読み取るための関数
+# terms(): フォーミュラから変数名を読み取るための関数
+# all.vars(): terms()の出力から変数名を読み取るための関数
 # ~+1: 定数項
 
 nuisance.model <- Event(t_test, epsilon_test) ~ +1
@@ -191,8 +211,8 @@ print(event_all_)
 # モデルフレーム型（example2）に変換し, データを取得している
 # モデルフレームはデータそのもので, モデルフレームを扱うために用意された関数が利用できることも特長
 # 一方でフォーミュラは変数名の情報にすぎず, 実在するデータと結びついていない
+# model.frame(): フォーミュラとデータフレームを結びつけるための関数
 # model.extract(): モデルフレームからデータを読み取るための関数
-# model.matrix(): モデルフレームから回帰モデルのデザイン行列を作るための関数
 
 nuisance.model <- Event(t_test, epsilon_test) ~ +1
 special <- NULL
@@ -204,13 +224,45 @@ example2 <- eval(example2, parent.frame())
 y <- model.extract(example2, "response")
 time <- y[, 1] # 時間の情報
 event_all_ <- y[, 2] # イベントコードの情報
-design_matrix <- model.matrix(out_terms, example2)
 
 class(example2)
 print(y)
 print(time)
 print(event_all_)
-print(design_matrix)
+
+# model.matrix(): モデルフレームから回帰モデルのデザイン行列を作るための関数
+# デザイン行列が特異行列にならないように自動的にダミー変数を作成してくれるが
+# デザイン行列のコーディングによって, 回帰係数の解釈が異なるため, 仕様を理解する必要がある
+# コーディングは, 対比（contrasts.arg）によって指定できる
+# デフォルト: contr.treatment（切片項は1, ダミー変数は0と1でコーディング）
+
+stratified.model <- Event(t_test, epsilon_test) ~ strata_test
+special <- NULL
+out_terms <- terms(stratified.model, special, data = df_test)
+example3 <- match.call()
+example3$formula <- out_terms
+example3[[1]] <- as.name("model.frame")
+example3 <- eval(example3, parent.frame())
+design_matrix_t <- model.matrix(out_terms, example3, contrasts.arg = list(strata_test = "contr.treatment"))
+design_matrix_s <- model.matrix(out_terms, example3, contrasts.arg = list(strata_test = "contr.sum"))
+design_matrix_p <- model.matrix(out_terms, example3, contrasts.arg = list(strata_test = "contr.poly"))
+design_matrix_S <- model.matrix(out_terms, example3, contrasts.arg = list(strata_test = "contr.SAS"))
+design_matrix_h <- model.matrix(out_terms, example3, contrasts.arg = list(strata_test = "contr.helmert"))
+print(design_matrix_t)
+
+# フォーミュラから変数xを減らすときは, マイナスを用いて-xと指定する
+# 以下のフォーミュラは切片項を含まないデザイン行列に対応する
+# このデザイン行列を用いて線型モデルを当てはめると, 共変量の水準ごとの平均が推定される
+
+no.intercept.model <- Event(t_test, epsilon_test) ~ -1+strata_test
+special <- NULL
+out_terms <- terms(no.intercept.model, special, data = df_test)
+example4 <- match.call()
+example4$formula <- out_terms
+example4[[1]] <- as.name("model.frame")
+example4 <- eval(example4, parent.frame())
+design_matrix_n <- model.matrix(out_terms, example4)
+print(design_matrix_n)
 
 
 # CIF_Hの補足2. 外部関数の利用
@@ -221,15 +273,41 @@ event_surv <- ifelse(event_all_ == 2, 1, event_all_)
 km_surv <- summary(survfit(Surv(time, event_surv) ~ 1))
 print(km_surv)
 
-# CIF_Hの補足3. インデックスを用いたベクトルの計算
+# CIF_Hの補足3. インデックスを用いた行列演算
+# Rで行われる計算のほとんどは行列演算であり
+# プログラミング上も, ベクトルや行列の線型演算として書いた方が, 可読性・速度が高い
+# 一方で, べき乗や微分積分など線型ではない計算をプログラミングするときは
+# forループなどを用いる必要がある
 # ベクトルXの要素iはX[i]により参照できる
-# forループを用いるとベクトル全体の要素ごとの計算ができる
+# 以下のように, iについてループを回すと, ベクトルの要素ごとの計算ができる
 
-n_1 <- length(time)
+n_1 <- length(t_test)
 cum <- 0
 for(i in 1:n_1){
-  cum <- cum + time[i]
+  cum <- cum + t_test[i]
 }
+print(1:n_1)
+print(cum)
+
+# forループを書くときには, 最低限でもループの最初・最後について, 挙動を確認しておくべきである
+# 上のような簡単なアルゴリズムですら, たとえばcumが定義されていないと, 最初の計算がうまくいかない
+
+n_1 <- length(t_test)
+cum <- NULL
+for(i in 1:n_1){
+  cum <- cum + t_test[i]
+}
+print(1:n_1)
+print(cum)
+
+# 最後のループも要確認である. 以下の例では, インデックスの終点がベクトルの範囲を超えてしまっている
+
+n_1 <- length(t_test)+1
+cum <- 0
+for(i in 1:n_1){
+  cum <- cum + t_test[i]
+}
+print(1:n_1)
 print(cum)
 
 

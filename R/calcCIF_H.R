@@ -453,15 +453,15 @@ calcDeltaVariance <- function(
 
 
 # test code below
-path = "C:/PROJECT/polyregData/20250210diabetes_dataset.csv"
-jdcs = read.csv(path)
+#path = "C:/PROJECT/polyregData/20250210diabetes_dataset.csv"
+#jdcs = read.csv(path)
 
-model1 <- "Event(t,epsilon) ~ sex"
-model1 <- as.formula(model1)
-model2 <- "Event(t,epsilon) ~ age+sex+bmi+hba1c+drug_oha+drug_insulin"
-model2 <- as.formula(model2)
-model3 <- "Event(t,epsilon) ~ age+sex+bmi+hba1c+diabetes_duration+drug_oha+drug_insulin+sbp+ldl+hdl+tg+current_smoker+alcohol_drinker+ltpa"
-model3 <- as.formula(model3)
+#model1 <- "Event(t,epsilon) ~ sex"
+#model1 <- as.formula(model1)
+#model2 <- "Event(t,epsilon) ~ age+sex+bmi+hba1c+drug_oha+drug_insulin"
+#model2 <- as.formula(model2)
+#model3 <- "Event(t,epsilon) ~ age+sex+bmi+hba1c+diabetes_duration+drug_oha+drug_insulin+sbp+ldl+hdl+tg+current_smoker+alcohol_drinker+ltpa"
+#model3 <- as.formula(model3)
 
-calcCIF_H(nuisance.model = model3, exposure = 'fruitq1',
-      data = jdcs, devideByExposure = FALSE, drawGraph = TRUE, drawGraphCI = FALSE, var_method = "Delta")
+#calcCIF_H(nuisance.model = model3, exposure = 'fruitq1',
+#      data = jdcs, devideByExposure = FALSE, drawGraph = TRUE, drawGraphCI = FALSE, var_method = "Delta")
