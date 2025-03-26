@@ -164,7 +164,7 @@ print(cbind(out$mu, out$times))
 # 多くの場合, 左辺はアウトカム, 右辺は共変量
 # データフレームのどの変数を用いるかを指定するときに有用
 
-example1 <- y ~ x1+x2 
+example1 <- y ~ x1+x2
 class(example1)
 print(example1[1])
 print(example1[2])
@@ -279,4 +279,55 @@ n.event1 <- as.numeric(epsilon_test==1)
 event1_time <- t_test
 CIF1_value <- calculateCIF3(event1_time, s_time, n.event1, s_surv, s_atrisk)
 toc()
+
+
+###########################################################################################
+# calculateCIF2はKaplan-Meier推定量をsurvfit関数（内部でCを使用）で計算しているため速い
+# calculateKaplanMeierはRcpp関数を用いて高速化できる
+
+cppFunction('
+NumericVector calculateKaplanMeier_new(NumericVector t, NumericVector d) {
+  int n = t.size();
+  NumericVector km(n);
+  IntegerVector indices = seq(0, n-1);
+  std::sort(indices.begin(), indices.end(), [&](int i, int j) {
+    return t[i] < t[j];
+  });
+
+  NumericVector sorted_t(n);
+  NumericVector sorted_d(n);
+  IntegerVector sorted_id(n);
+  for (int i = 0; i < n; i++) {
+    sorted_t[i] = t[indices[i]];
+    sorted_d[i] = d[indices[i]];
+    sorted_id[i] = indices[i] + 1;
+  }
+
+  int n_atrisk = n;
+  double km_i = 1.0;
+  for (int i = 0; i < n; i++) {
+    if (i > 0 && sorted_t[i] != sorted_t[i-1]) {
+      n_atrisk = n - i;
+    }
+    km_i *= (1 - sorted_d[i] / (double)n_atrisk);
+    km[i] = km_i;
+  }
+  return km;
+}
+')
+
+library(Rcpp)
+library(microbenchmark)
+n_test <- 30000
+t_test <- 1:n_test
+epsilon_test <- rep(1, n_test)
+epsilon_test[1] <- 0
+epsilon_test[2] <- 2
+epsilon_test[10] <- 2
+df_test <- data.frame(id = 1:n_test, t_test = t_test, epsilon_test = epsilon_test)
+microbenchmark(
+  calculateKaplanMeier(t_test, as.numeric(epsilon_test>0)),
+  calculateKaplanMeier_new(t_test, as.numeric(epsilon_test>0))
+)
+
 
