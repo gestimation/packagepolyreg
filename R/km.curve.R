@@ -276,7 +276,11 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
       } else {
         km_i[i] = 1;
       }
-      weighted_n_censor[i] = weighted_n_risk[i] - weighted_n_event[i];
+      if (i < u-1) {
+        weighted_n_censor[i] = (weighted_n_risk[i]-weighted_n_risk[i+1]) - weighted_n_event[i];
+      } else {
+        weighted_n_censor[i] = weighted_n_risk[i] - weighted_n_event[i];
+      }
 
       if (i == 0) {
         km[i] = km_i[i];
@@ -381,8 +385,11 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
         } else {
           km_i[j] = 1;
         }
-
-        weighted_n_censor[j] = weighted_n_risk[j] - weighted_n_event[j];
+        if (j < u_stratum-1) {
+          weighted_n_censor[j] = (weighted_n_risk[j]-weighted_n_risk[j+1]) - weighted_n_event[j];
+        } else {
+          weighted_n_censor[j] = weighted_n_risk[j] - weighted_n_event[j];
+        }
 
         km[j] = (j == 0) ? km_i[j] : km[j - 1] * km_i[j];
 
