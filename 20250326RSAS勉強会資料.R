@@ -603,12 +603,43 @@ print(tested)
 
 
 
-tested <- calculateKaplanMeier_unique_times(t_test, as.numeric(epsilon_test>0), w_test)
-print(tested)
 
 
+##################################################################################################################################
+df_test <- createTestData(20, 2, first_zero=TRUE, last_zero=FALSE, subset_present=FALSE, logical_strata=FALSE, na_strata=TRUE)
+print(df_test)
+expected <- survfit(Surv(t, d)~strata, df_test, weights=w)
+print(expected$surv)
+print(expected$time)
+print(expected$n)
+print(expected$n.risk)
+print(expected$n.event)
+print(expected$n.censor)
+print(expected$strata)
+print(expected$std.err)
+print(expected$low)
+print(expected$high)
+
+tested <- km.curve(Surv(t, d)~strata, df_test, conf.type="log-log", na.action=na.omit, weights=w)
+print(tested$surv)
+print(tested$time)
+print(tested$n)
+print(tested$n.risk)
+print(tested$n.event)
+print(tested$n.censor)
+print(tested$strata)
+print(tested$std.err)
+print(tested$low)
+print(tested$high)
 
 
+##################################################################################################################################
+library(microbenchmark)
+df_test <- createTestData(1000, 1, first_zero=TRUE, last_zero=FALSE, subset_present=FALSE, logical_strata=FALSE, na_strata=TRUE)
+microbenchmark(survfit(Surv(t, d)~strata, df_test),
+               km.curve(Surv(t, d)~strata, df_test, na.action=na.omit),
+               km.curve(Surv(t, d)~strata, df_test, conf.type=NULL, na.action=na.omit),
+               times = 200)
 
 
 

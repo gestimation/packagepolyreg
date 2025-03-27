@@ -1,0 +1,12 @@
+test_that("km.curve yileds the same outputs as survfit", {
+  library(survival)
+  library(Rcpp)
+  df_test <- createTestData(20, 2, first_zero=FALSE, last_zero=FALSE, subset_present=FALSE, logical_strata=FALSE, na_strata=FALSE)
+  e <- survfit(Surv(t, d)~strata, df_test)
+  t <- km.curve(Surv(t, d)~strata, df_test)
+  expected <- as.numeric(c(e$time, e$surv, e$n.risk, e$std.err, e$strata))
+  tested <- as.numeric(c(t$time, t$surv, t$n.risk, t$std.err, t$strata))
+#  expected <- as.numeric(c(e$time, e$surv, e$n, e$n.risk, e$n.event, e$n.censor, e$std.err, e$strata))
+#  tested <- as.numeric(c(t$time, t$surv, t$n, t$n.risk, t$n.event, t$n.censor, t$std.err, t$strata))
+  expect_equal(expected, tested)
+})

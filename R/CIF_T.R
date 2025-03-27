@@ -139,36 +139,36 @@ calculateKaplanMeier <- function(t, d){
 }
 
 
-cppFunction('
-NumericVector calculateKaplanMeier_new(NumericVector t, NumericVector d) {
-  int n = t.size();
-  NumericVector km(n);
-  IntegerVector indices = seq(0, n-1);
-  std::sort(indices.begin(), indices.end(), [&](int i, int j) {
-    return t[i] < t[j];
-  });
+#cppFunction('
+#NumericVector calculateKaplanMeier_new(NumericVector t, NumericVector d) {
+#  int n = t.size();
+#  NumericVector km(n);
+#  IntegerVector indices = seq(0, n-1);
+#  std::sort(indices.begin(), indices.end(), [&](int i, int j) {
+#    return t[i] < t[j];
+#  });
 
-  NumericVector sorted_t(n);
-  NumericVector sorted_d(n);
-  IntegerVector sorted_id(n);
-  for (int i = 0; i < n; i++) {
-    sorted_t[i] = t[indices[i]];
-    sorted_d[i] = d[indices[i]];
-    sorted_id[i] = indices[i] + 1; // 1-based indexing
-  }
+#  NumericVector sorted_t(n);
+#  NumericVector sorted_d(n);
+#  IntegerVector sorted_id(n);
+#  for (int i = 0; i < n; i++) {
+#    sorted_t[i] = t[indices[i]];
+#    sorted_d[i] = d[indices[i]];
+#    sorted_id[i] = indices[i] + 1; // 1-based indexing
+#  }
 
-  int n_atrisk = n;
-  double km_i = 1.0;
-  for (int i = 0; i < n; i++) {
-    if (i > 0 && sorted_t[i] != sorted_t[i-1]) {
-      n_atrisk = n - i;
-    }
-    km_i *= (1 - sorted_d[i] / (double)n_atrisk);
-    km[i] = km_i;
-  }
-  return km;
-}
-')
+#  int n_atrisk = n;
+#  double km_i = 1.0;
+#  for (int i = 0; i < n; i++) {
+#    if (i > 0 && sorted_t[i] != sorted_t[i-1]) {
+#      n_atrisk = n - i;
+#    }
+#    km_i *= (1 - sorted_d[i] / (double)n_atrisk);
+#    km[i] = km_i;
+#  }
+#  return km;
+#}
+#')
 
 calculateKaplanMeier1 <- function(t, d){
   n <- length(t)
