@@ -12,7 +12,7 @@
 #' @param conf.type character Specifies transformation used to construct the confidence interval on the probabilities. Defaults to "arcsine-square root".
 #' @param conf.lower character controls modified lower limits to the curve, the upper limit remains unchanged. The modified lower limit is based on an 'effective n' argument.
 #'
-#' @returns km_object
+#' @returns
 #' @export km.curve
 #'
 #' @examples
@@ -36,7 +36,7 @@ km.curve <- function(formula,
   if (is.null(weights)) {
     w <- rep(1, nrow(data))
   } else {
-    w <- data[["weights"]]
+    w <- data[[weights]]
     if (!is.numeric(w))
       stop("weights must be numeric")
     if (any(!is.finite(w)))
@@ -78,29 +78,35 @@ calculateConfidenceInterval <- function(survfit_object, conf.int, conf.type, con
     stop("Confidence level must be between 0 and 1")
   alpha <- 1 - conf.int
   critical_value <- qnorm(1 - alpha / 2)
-  if (is.null(conf.type)) {
+  if (is.null(conf.type) | conf.type == "none") {
     low <- NULL
     high <- NULL
   } else if (conf.type == "arcsine-square root") {
-    se <- survfit_object$std.err/2/sqrt(survfit_object$surv * (1 - survfit_object$surv))
+    se <- survfit_object$surv*survfit_object$std.err/2/sqrt(survfit_object$surv * (1 - survfit_object$surv))
     low <- sin(min(asin(sqrt(survfit_object$surv)) - critical_value*se, pi/2))^2
     high <- sin(min(asin(sqrt(survfit_object$surv)) + critical_value*se, pi/2))^2
-  } else if (conf.type == "linear") {
-    low <- survfit_object$surv - critical_value*survfit_object$std.err
-    high <- survfit_object$surv + critical_value*survfit_object$std.err
+  } else if (conf.type == "plain") {
+    low <- survfit_object$surv - critical_value*survfit_object$surv*survfit_object$std.err
+    high <- survfit_object$surv + critical_value*survfit_object$surv*survfit_object$std.err
   } else if (conf.type == "log") {
-    se <- survfit_object$std.err / survfit_object$surv
-    low <- log(survfit_object$surv) * exp(-critical_value*se)
-    high <- log(survfit_object$surv) * exp(critical_value*se)
+    se <- survfit_object$std.err
+    low <- survfit_object$surv * exp(-critical_value*se)
+    high <- survfit_object$surv * exp(critical_value*se)
   } else if (conf.type == "log-log") {
-    se <- survfit_object$std.err / survfit_object$surv / log(survfit_object$surv)
-    low <- survfit_object$surv^(critical_value*se)
-    high <- survfit_object$surv^(-critical_value*se)
+    se <- survfit_object$std.err / log(survfit_object$surv)
+    low <- survfit_object$surv^exp(-critical_value*se)
+    high <- survfit_object$surv^exp(critical_value*se)
   } else if (conf.type == "logit") {
-    se <- survfit_object$std.err/(survfit_object$surv * (1 - survfit_object$surv))
+    se <- survfit_object$std.err/(1 - survfit_object$surv)
     low <- survfit_object$surv / (survfit_object$surv + (1 - survfit_object$surv)*exp(critical_value*se))
     high <- survfit_object$surv / (survfit_object$surv + (1 - survfit_object$surv)*exp(-critical_value*se))
   }
+  low <- sapply(low, function(x) ifelse(is.nan(x), NA, x))
+  high <- sapply(high, function(x) ifelse(is.nan(x), NA, x))
+  low <- sapply(low, function(x) ifelse(x>=1, 1, x))
+  high <- sapply(high, function(x) ifelse(x>=1, 1, x))
+  low <- sapply(low, function(x) ifelse(x<=0, 0, x))
+  high <- sapply(high, function(x) ifelse(x<=0, 0, x))
   return(list(high=high, low=low))
 }
 
@@ -124,7 +130,7 @@ readSurv <- function(formula, data, code.event, code.censoring, na.action, conf.
   data <- na.action(data)
   cl <- match.call()
   if (missing(formula))
-    stop("a formula argument is required")
+    stop("A formula argument is required")
   mf <- match.call(expand.dots = TRUE)[1:3]
   special <- NULL
   out_terms <- terms(formula, special, data = data)
@@ -159,8 +165,6 @@ readSurv <- function(formula, data, code.event, code.censoring, na.action, conf.
       strata <- as.integer(as.factor(data[[strata_name]]))
     }
   }
-  if (conf.int <= 0 | conf.int >= 1)
-    stop("Confidence level must be between 0 and 1")
   return(list(t = t, d = d, strata = strata))
 }
 
@@ -276,7 +280,12 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
       } else {
         km_i[i] = 1;
       }
-      weighted_n_censor[i] = weighted_n_risk[i] - weighted_n_event[i];
+      if (i > 0) {
+        weighted_n_censor[i-1] = weighted_n_risk[i-1] - weighted_n_risk[i] - weighted_n_event[i-1];
+      }
+      if (i == u-1) {
+        weighted_n_censor[i] = weighted_n_risk[i] - weighted_n_event[i];
+      }
 
       if (i == 0) {
         km[i] = km_i[i];
@@ -381,8 +390,12 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
         } else {
           km_i[j] = 1;
         }
-
-        weighted_n_censor[j] = weighted_n_risk[j] - weighted_n_event[j];
+        if (j > 0) {
+          weighted_n_censor[j-1] = weighted_n_risk[j-1] - weighted_n_risk[j] - weighted_n_event[j-1];
+        }
+        if (j == u_stratum-1) {
+          weighted_n_censor[j] = weighted_n_risk[j] - weighted_n_event[j];
+        }
 
         km[j] = (j == 0) ? km_i[j] : km[j - 1] * km_i[j];
 
