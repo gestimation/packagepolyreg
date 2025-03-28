@@ -59,8 +59,8 @@ km.curve <- function(formula,
     n.event = out_calculateKaplanMeier_rcpp$n.event,
     n.censor = out_calculateKaplanMeier_rcpp$n.censor,
     std.err = out_calculateKaplanMeier_rcpp$std.err,
-    high = ci$high,
-    low = ci$low,
+    upper = ci$upper,
+    lower = ci$lower,
     conf.type = conf.type,
     strata = out_strata,
     call = match.call(),
@@ -77,35 +77,35 @@ calculateConfidenceInterval <- function(survfit_object, conf.int, conf.type, con
   alpha <- 1 - conf.int
   critical_value <- qnorm(1 - alpha / 2)
   if (is.null(conf.type) | conf.type == "none") {
-    low <- NULL
-    high <- NULL
+    lower <- NULL
+    upper <- NULL
   } else if (conf.type == "arcsine-square root") {
     se <- survfit_object$surv*survfit_object$std.err/2/sqrt(survfit_object$surv * (1 - survfit_object$surv))
-    low <- sin(min(asin(sqrt(survfit_object$surv)) - critical_value*se, pi/2))^2
-    high <- sin(min(asin(sqrt(survfit_object$surv)) + critical_value*se, pi/2))^2
+    lower <- sin(min(asin(sqrt(survfit_object$surv)) - critical_value*se, pi/2))^2
+    upper <- sin(min(asin(sqrt(survfit_object$surv)) + critical_value*se, pi/2))^2
   } else if (conf.type == "plain") {
-    low <- survfit_object$surv - critical_value*survfit_object$surv*survfit_object$std.err
-    high <- survfit_object$surv + critical_value*survfit_object$surv*survfit_object$std.err
+    lower <- survfit_object$surv - critical_value*survfit_object$surv*survfit_object$std.err
+    upper <- survfit_object$surv + critical_value*survfit_object$surv*survfit_object$std.err
   } else if (conf.type == "log") {
     se <- survfit_object$std.err
-    low <- survfit_object$surv * exp(-critical_value*se)
-    high <- survfit_object$surv * exp(critical_value*se)
+    lower <- survfit_object$surv * exp(-critical_value*se)
+    upper <- survfit_object$surv * exp(critical_value*se)
   } else if (conf.type == "log-log") {
     se <- survfit_object$std.err / log(survfit_object$surv)
-    low <- survfit_object$surv^exp(-critical_value*se)
-    high <- survfit_object$surv^exp(critical_value*se)
+    lower <- survfit_object$surv^exp(-critical_value*se)
+    upper <- survfit_object$surv^exp(critical_value*se)
   } else if (conf.type == "logit") {
     se <- survfit_object$std.err/(1 - survfit_object$surv)
-    low <- survfit_object$surv / (survfit_object$surv + (1 - survfit_object$surv)*exp(critical_value*se))
-    high <- survfit_object$surv / (survfit_object$surv + (1 - survfit_object$surv)*exp(-critical_value*se))
+    lower <- survfit_object$surv / (survfit_object$surv + (1 - survfit_object$surv)*exp(critical_value*se))
+    upper <- survfit_object$surv / (survfit_object$surv + (1 - survfit_object$surv)*exp(-critical_value*se))
   }
-  low <- sapply(low, function(x) ifelse(is.nan(x), NA, x))
-  high <- sapply(high, function(x) ifelse(is.nan(x), NA, x))
-  low <- sapply(low, function(x) ifelse(x>=1, 1, x))
-  high <- sapply(high, function(x) ifelse(x>=1, 1, x))
-  low <- sapply(low, function(x) ifelse(x<=0, 0, x))
-  high <- sapply(high, function(x) ifelse(x<=0, 0, x))
-  return(list(high=high, low=low))
+  lower <- sapply(lower, function(x) ifelse(is.nan(x), NA, x))
+  upper <- sapply(upper, function(x) ifelse(is.nan(x), NA, x))
+  lower <- sapply(lower, function(x) ifelse(x>=1, 1, x))
+  upper <- sapply(upper, function(x) ifelse(x>=1, 1, x))
+  lower <- sapply(lower, function(x) ifelse(x<=0, 0, x))
+  upper <- sapply(upper, function(x) ifelse(x<=0, 0, x))
+  return(list(upper=upper, lower=lower))
 }
 
 
@@ -235,7 +235,8 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
     Rcpp::IntegerVector weighted_n_censor(u);
     Rcpp::NumericVector std_err(u);
 
-    int n = w.size();
+    int n_stratum = t.size();
+    int n = t.size();
     for (int i = 0; i < u; ++i) {
       double time = unique_times[i];
       double weighted_n_i = 0;
@@ -259,9 +260,11 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
       } else {
         km_i[i] = 1;
       }
-      if (i < u-1) {
-        weighted_n_censor[i] = (weighted_n_risk[i]-weighted_n_risk[i+1]) - weighted_n_event[i];
-      } else {
+
+      if (i > 0) {
+        weighted_n_censor[i-1] = weighted_n_risk[i-1] - weighted_n_risk[i] - weighted_n_event[i-1];
+      }
+      if (i == u-1) {
         weighted_n_censor[i] = weighted_n_risk[i] - weighted_n_event[i];
       }
 
@@ -299,6 +302,7 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
     combined_n_event.insert(combined_n_event.end(), weighted_n_event.begin(), weighted_n_event.end());
     combined_n_censor.insert(combined_n_censor.end(), weighted_n_censor.begin(), weighted_n_censor.end());
     combined_std_err.insert(combined_std_err.end(), std_err.begin(), std_err.end());
+    combined_n_stratum.insert(combined_n_stratum.end(), n_stratum);
 
   } else if (strata.size() == 0 || Rcpp::unique(strata).size() == 1) {
 
@@ -313,11 +317,10 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
     Rcpp::IntegerVector weighted_n_censor(u);
     Rcpp::NumericVector std_err(u);
 
-    int n = w.size();
-
+    int n_stratum = t.size();
+    int n = t.size();
     for (int i = 0; i < u; ++i) {
       double time = unique_times[i];
-
       double weighted_n_i = 0;
       double unweighted_n_i = 0;
       for (int j = 0; j < n; ++j) {
@@ -340,9 +343,11 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
       } else {
         km_i[i] = 1;
       }
-      if (i < u-1) {
-        weighted_n_censor[i] = (weighted_n_risk[i]-weighted_n_risk[i+1]) - weighted_n_event[i];
-      } else {
+
+      if (i > 0) {
+        weighted_n_censor[i-1] = weighted_n_risk[i-1] - weighted_n_risk[i] - weighted_n_event[i-1];
+      }
+      if (i == u-1) {
         weighted_n_censor[i] = weighted_n_risk[i] - weighted_n_event[i];
       }
 
@@ -380,6 +385,7 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
     combined_n_event.insert(combined_n_event.end(), weighted_n_event.begin(), weighted_n_event.end());
     combined_n_censor.insert(combined_n_censor.end(), weighted_n_censor.begin(), weighted_n_censor.end());
     combined_std_err.insert(combined_std_err.end(), std_err.begin(), std_err.end());
+    combined_n_stratum.insert(combined_n_stratum.end(), n_stratum);
 
   } else if (w.size() == 0 || (Rcpp::unique(w).size() == 1 && w[0] == 1)) {
 
@@ -418,7 +424,7 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
         double weighted_n_sub = 0;
         for (int k = 0; k < t_selected.size(); ++k) {
           if (t_selected[k] >= time) {
-            weighted_n_sub += d_selected[k];
+            weighted_n_sub++;
           }
         }
         weighted_n_risk[j] = weighted_n_sub;
@@ -426,7 +432,7 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
         double weighted_events = 0;
         for (int k = 0; k < t_selected.size(); ++k) {
           if (t_selected[k] == time && d_selected[k] == 1) {
-            weighted_events += d_selected[k];
+            weighted_events++;
           }
         }
 
@@ -436,9 +442,11 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
         } else {
           km_i[j] = 1;
         }
-        if (j < u_stratum-1) {
-          weighted_n_censor[j] = (weighted_n_risk[j]-weighted_n_risk[j+1]) - weighted_n_event[j];
-        } else {
+
+        if (j > 0) {
+          weighted_n_censor[j-1] = weighted_n_risk[j-1] - weighted_n_risk[j] - weighted_n_event[j-1];
+        }
+        if (j == u_stratum-1) {
           weighted_n_censor[j] = weighted_n_risk[j] - weighted_n_event[j];
         }
 
@@ -532,9 +540,11 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
         } else {
           km_i[j] = 1;
         }
-        if (j < u_stratum-1) {
-          weighted_n_censor[j] = (weighted_n_risk[j]-weighted_n_risk[j+1]) - weighted_n_event[j];
-        } else {
+
+        if (j > 0) {
+          weighted_n_censor[j-1] = weighted_n_risk[j-1]-weighted_n_risk[j] - weighted_n_event[j-1];
+        }
+        if (j == u_stratum-1) {
           weighted_n_censor[j] = weighted_n_risk[j] - weighted_n_event[j];
         }
 
@@ -791,16 +801,10 @@ Rcpp::List calculateKaplanMeier_rcpp_old2(Rcpp::NumericVector t, Rcpp::IntegerVe
       } else {
         km_i[i] = 1;
       }
-<<<<<<< HEAD
-      if (i > 0) {
-        weighted_n_censor[i-1] = weighted_n_risk[i-1] - weighted_n_risk[i] - weighted_n_event[i-1];
-      }
-      if (i == u-1) {
-=======
+
       if (i < u-1) {
         weighted_n_censor[i] = (weighted_n_risk[i]-weighted_n_risk[i+1]) - weighted_n_event[i];
       } else {
->>>>>>> f534fb09ec4c39ac1d11f16294f3685d2c7eed7b
         weighted_n_censor[i] = weighted_n_risk[i] - weighted_n_event[i];
       }
 
@@ -1021,16 +1025,10 @@ Rcpp::List calculateKaplanMeier_rcpp_old2(Rcpp::NumericVector t, Rcpp::IntegerVe
         } else {
           km_i[j] = 1;
         }
-<<<<<<< HEAD
-        if (j > 0) {
-          weighted_n_censor[j-1] = weighted_n_risk[j-1] - weighted_n_risk[j] - weighted_n_event[j-1];
-        }
-        if (j == u_stratum-1) {
-=======
+
         if (j < u_stratum-1) {
           weighted_n_censor[j] = (weighted_n_risk[j]-weighted_n_risk[j+1]) - weighted_n_event[j];
         } else {
->>>>>>> f534fb09ec4c39ac1d11f16294f3685d2c7eed7b
           weighted_n_censor[j] = weighted_n_risk[j] - weighted_n_event[j];
         }
 
