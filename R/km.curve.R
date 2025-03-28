@@ -26,48 +26,45 @@ km.curve <- function(formula,
                      error = "greenwood",
                      conf.type = "arcsine-square root"
 ) {
-  data <- createAnalysisDataset(data, subset, na.action)
-  out_readSurv <- readSurv(formula, data, code.event, code.censoring, na.action, conf.int)
-  t <- out_readSurv$t
-  d <- out_readSurv$d
-  strata <- out_readSurv$strata
-  if (is.null(weights)) {
-    w <- rep(1, nrow(data))
-  } else {
-    w <- data[[weights]]
-    if (!is.numeric(w))
-      stop("weights must be numeric")
-    if (any(!is.finite(w)))
-      stop("weights must be finite")
-    if (any(w < 0))
-      stop("weights must be non-negative")
-    if (any(is.na(w)))
-      stop("weights contain NA values")
-  }
-  out_calculateKaplanMeier_rcpp <- calculateKaplanMeier_rcpp(t, d, w, strata, error)
-  if (all(strata == 1)) {
-    out_strata <- NULL
-  } else {
-    out_strata <- out_calculateKaplanMeier_rcpp$strata
-  }
+  checkDependentPackages()
+  out_readSurv <- readSurv(formula, data, weights, code.event, code.censoring, subset, na.action)
+  out_calculateKaplanMeier_rcpp <- calculateKaplanMeier_rcpp(out_readSurv$t, out_readSurv$d, out_readSurv$w, out_readSurv$strata, error)
   ci <- calculateConfidenceInterval(out_calculateKaplanMeier_rcpp, conf.int, conf.type, conf.lower)
-  survfit_object <- list(
-    time = out_calculateKaplanMeier_rcpp$time,
-    surv = out_calculateKaplanMeier_rcpp$surv,
-    n = out_calculateKaplanMeier_rcpp$n,
-    n.risk = out_calculateKaplanMeier_rcpp$n.risk,
-    n.event = out_calculateKaplanMeier_rcpp$n.event,
-    n.censor = out_calculateKaplanMeier_rcpp$n.censor,
-    std.err = out_calculateKaplanMeier_rcpp$std.err,
-    upper = ci$upper,
-    lower = ci$lower,
-    conf.type = conf.type,
-    strata = out_strata,
-    call = match.call(),
-    type = "kaplan-meier",
-    method = "Kaplan-Meier"
-  )
-  class(survfit_object) <- c("survfit", "list")
+  if (all(out_readSurv$strata == 1)) {
+    survfit_object <- list(
+      time = out_calculateKaplanMeier_rcpp$time,
+      surv = out_calculateKaplanMeier_rcpp$surv,
+      n = out_calculateKaplanMeier_rcpp$n,
+      n.risk = out_calculateKaplanMeier_rcpp$n.risk,
+      n.event = out_calculateKaplanMeier_rcpp$n.event,
+      n.censor = out_calculateKaplanMeier_rcpp$n.censor,
+      std.err = out_calculateKaplanMeier_rcpp$std.err,
+      upper = ci$upper,
+      lower = ci$lower,
+      conf.type = conf.type,
+      call = match.call(),
+      type = "kaplan-meier",
+      method = "Kaplan-Meier"
+    )
+  } else {
+    survfit_object <- list(
+      time = out_calculateKaplanMeier_rcpp$time,
+      surv = out_calculateKaplanMeier_rcpp$surv,
+      n = out_calculateKaplanMeier_rcpp$n,
+      n.risk = out_calculateKaplanMeier_rcpp$n.risk,
+      n.event = out_calculateKaplanMeier_rcpp$n.event,
+      n.censor = out_calculateKaplanMeier_rcpp$n.censor,
+      std.err = out_calculateKaplanMeier_rcpp$std.err,
+      upper = ci$upper,
+      lower = ci$lower,
+      conf.type = conf.type,
+      strata = out_calculateKaplanMeier_rcpp$strata,
+      call = match.call(),
+      type = "kaplan-meier",
+      method = "Kaplan-Meier"
+    )
+  }
+  class(survfit_object) <- c("survfit")
   return(survfit_object)
 }
 
@@ -79,17 +76,17 @@ calculateConfidenceInterval <- function(survfit_object, conf.int, conf.type, con
   if (is.null(conf.type) | conf.type == "none") {
     lower <- NULL
     upper <- NULL
-  } else if (conf.type == "arcsine-square root") {
+  } else if (conf.type == "arcsine-square root" | conf.type == "arcsin" | conf.type == "a") {
     se <- survfit_object$surv*survfit_object$std.err/2/sqrt(survfit_object$surv * (1 - survfit_object$surv))
-    lower <- sin(min(asin(sqrt(survfit_object$surv)) - critical_value*se, pi/2))^2
-    upper <- sin(min(asin(sqrt(survfit_object$surv)) + critical_value*se, pi/2))^2
-  } else if (conf.type == "plain") {
-    lower <- survfit_object$surv - critical_value*survfit_object$surv*survfit_object$std.err
-    upper <- survfit_object$surv + critical_value*survfit_object$surv*survfit_object$std.err
+    lower <- sin(pmax(asin(sqrt(survfit_object$surv)) - critical_value*se, 0))^2
+    upper <- sin(pmin(asin(sqrt(survfit_object$surv)) + critical_value*se, pi/2))^2
+  } else if (conf.type == "plain" | conf.type == "p" | conf.type == "linear") {
+    lower <- pmax(survfit_object$surv - critical_value*survfit_object$surv*survfit_object$std.err, 0)
+    upper <- pmin(survfit_object$surv + critical_value*survfit_object$surv*survfit_object$std.err, 1)
   } else if (conf.type == "log") {
     se <- survfit_object$std.err
     lower <- survfit_object$surv * exp(-critical_value*se)
-    upper <- survfit_object$surv * exp(critical_value*se)
+    upper <- pmin(survfit_object$surv * exp(critical_value*se), 1)
   } else if (conf.type == "log-log") {
     se <- survfit_object$std.err / log(survfit_object$surv)
     lower <- survfit_object$surv^exp(-critical_value*se)
@@ -108,30 +105,41 @@ calculateConfidenceInterval <- function(survfit_object, conf.int, conf.type, con
   return(list(upper=upper, lower=lower))
 }
 
-
-createAnalysisDataset <- function(data, subset_condition, na.action) {
+createAnalysisDataset <- function(formula, data, weights, subset_condition, na.action) {
   if (!is.null(subset_condition)) {
     analysis_dataset <- subset(data, eval(parse(text = subset_condition)))
   } else {
     analysis_dataset <- data
   }
+  all_vars <- all.vars(formula)
+  all_vars <- c(all_vars, weights)
+  analysis_dataset <- analysis_dataset[, all_vars, drop = FALSE]
   return(na.action(analysis_dataset))
 }
 
-readSurv <- function(formula, data, code.event, code.censoring, na.action, conf.int) {
+checkDependentPackages <- function() {
   if (requireNamespace("mets", quietly = TRUE) & requireNamespace("Rcpp", quietly = TRUE)) {
     suppressWarnings(library(mets))
     suppressWarnings(library(Rcpp))
   } else {
     stop("Required packages 'mets' and/or 'Rcpp' are not installed.")
   }
-  data <- na.action(data)
+}
+
+readSurv <- function(formula, data, weights, code.event, code.censoring, subset_condition, na.action) {
+  data <- createAnalysisDataset(formula, data, weights, subset_condition, na.action)
   cl <- match.call()
   if (missing(formula))
     stop("A formula argument is required")
   mf <- match.call(expand.dots = TRUE)[1:3]
-  special <- NULL
+  special <- c("strata", "offset", "cluster")
   out_terms <- terms(formula, special, data = data)
+  if (!is.null(attr(out_terms, "specials")$strata))
+    stop("strata() cannot appear in formula")
+  if (!is.null(attr(out_terms, "specials")$offset))
+    stop("offset() cannot appear in formula")
+  if (!is.null(attr(out_terms, "specials")$cluster))
+    stop("cluster() cannot appear in formula")
   mf$formula <- out_terms
   mf[[1]] <- as.name("model.frame")
   mf <- eval(mf, parent.frame())
@@ -163,7 +171,20 @@ readSurv <- function(formula, data, code.event, code.censoring, na.action, conf.
       strata <- as.integer(as.factor(data[[strata_name]]))
     }
   }
-  return(list(t = t, d = d, strata = strata))
+  if (is.null(weights)) {
+    w <- rep(1, nrow(data))
+  } else {
+    w <- data[[weights]]
+    if (!is.numeric(w))
+      stop("weights must be numeric")
+    if (any(!is.finite(w)))
+      stop("weights must be finite")
+    if (any(w < 0))
+      stop("weights must be non-negative")
+    if (any(is.na(w)))
+      stop("weights contain NA values")
+  }
+  return(list(t = t, d = d, strata = strata, w=w))
 }
 
 ##############################################################################################################

@@ -397,13 +397,51 @@ createTestData <- function(n, w, first_zero=FALSE, last_zero=FALSE, subset_prese
 
 library(microbenchmark)
 library(survival)
-df_test <- createTestData(30000, 1, first_zero=TRUE, last_zero=FALSE, subset_present=FALSE, logical_strata=FALSE, na_strata=TRUE)
-microbenchmark(calculateKaplanMeier1(observed_time, event),
-               calculateKaplanMeier2(observed_time, event),
-               calculateKaplanMeier3(observed_time, event),
-               calculateKaplanMeier4(observed_time, event),
-               survfit(Surv(observed_time, event)~1),
-               times = 200)
+df_test <- createTestData(10, 1, first_zero=TRUE, last_zero=FALSE, subset_present=FALSE, logical_strata=FALSE, na_strata=TRUE)
+microbenchmark(calculateKaplanMeier1(df_test$t, df_test$d),
+               calculateKaplanMeier2(df_test$t, df_test$d),
+               calculateKaplanMeier3(df_test$t, df_test$d),
+               calculateKaplanMeier4(df_test$t, df_test$d),
+               survfit(Surv(t, d)~1, data=df_test),
+               km.curve(Surv(t, d)~1, data=df_test),
+               times = 20)
+
+
+
+library(survminer)
+library(tidyverse)
+fit <- km.curve(Surv(t, d)~1, data=df_test, conf.type="log")
+ggsurvplot(fit)
+
+
+
+df_test <- createTestData(10, 1, first_zero=TRUE, last_zero=FALSE, subset_present=FALSE, logical_strata=FALSE, na_strata=FALSE)
+fit1 <- km.curve(Surv(t, d)~strata, data=df_test, conf.type="log")
+ggsurvplot(fit1)
+
+
+fit1 <- km.curve(Surv(t, d)~strata, data=df_test, conf.type="log")
+print(fit1$strata)
+
+fit2 <- survfit(Surv(t, d)~strata, data=df_test)
+print(fit2$strata)
+
+
+class(fit1$strata)
+print(fit1$strata)
+str(fit1$strata)
+length(fit1$strata)
+levels(fit1$strata)
+anyNA(fit1$strata)
+names(fit1$strata)
+attributes(fit1$strata)
+methods(class = "survfit")
+str(fit1)
+str(fit2)
+identical(fit1$strata, fit2$strata)
+
+
+
 
 #------------------------------------------------------------------------------------------
 # 【参考】フォーミュラ型
