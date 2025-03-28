@@ -10,7 +10,6 @@
 #' @param conf.int numeric The level for a two-sided confidence interval on the survival probabilities. Defaults to 0.95.
 #' @param error character either the string "greenwood" for the Greenwood formula or "tsiatis" for the Tsiatis formula. Defaults to "greenwood".
 #' @param conf.type character Specifies transformation used to construct the confidence interval on the probabilities. Defaults to "arcsine-square root".
-#' @param conf.lower character controls modified lower limits to the curve, the upper limit remains unchanged. The modified lower limit is based on an 'effective n' argument.
 #'
 #' @returns
 #' @export km.curve
@@ -25,8 +24,7 @@ km.curve <- function(formula,
                      na.action = na.pass,
                      conf.int = 0.95,
                      error = "greenwood",
-                     conf.type = "arcsine-square root",
-                     conf.lower = NULL
+                     conf.type = "arcsine-square root"
 ) {
   data <- createAnalysisDataset(data, subset, na.action)
   out_readSurv <- readSurv(formula, data, code.event, code.censoring, na.action, conf.int)
@@ -463,13 +461,13 @@ Rcpp::List calculateKaplanMeier_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector 
     Rcpp::_["n"] = combined_n_stratum,
     Rcpp::_["n.event"] = all_n_event,
     Rcpp::_["n.censor"] = all_n_censor,
-    Rcpp::_["unweighted.n"] = all_n_stratum,
+//    Rcpp::_["unweighted.n"] = all_n_stratum,
 //    Rcpp::_["unweighted.n.event"] = all_unweighted_n_event,
 //    Rcpp::_["unweighted.n.censor"] = all_unweighted_n_censor,
     Rcpp::_["std.err"] = all_std_err,
     Rcpp::_["high"] = R_NilValue,
     Rcpp::_["low"] = R_NilValue,
-    Rcpp::_["conf.type"] = "log-log",
+    Rcpp::_["conf.type"] = R_NilValue,
     Rcpp::_["strata"] = all_u_stratum,
     Rcpp::_["type"] = "kaplan-meier",
     Rcpp::_["method"] = "Kaplan-Meier"
