@@ -407,42 +407,6 @@ microbenchmark(calculateKaplanMeier1(df_test$t, df_test$d),
                times = 20)
 
 
-
-library(survminer)
-library(tidyverse)
-fit <- km.curve(Surv(t, d)~1, data=df_test, conf.type="log")
-ggsurvplot(fit)
-
-
-
-df_test <- createTestData(10, 1, first_zero=TRUE, last_zero=FALSE, subset_present=FALSE, logical_strata=FALSE, na_strata=FALSE)
-fit1 <- km.curve(Surv(t, d)~strata, data=df_test, conf.type="log")
-ggsurvplot(fit1)
-
-
-fit1 <- km.curve(Surv(t, d)~strata, data=df_test, conf.type="log")
-print(fit1$strata)
-
-fit2 <- survfit(Surv(t, d)~strata, data=df_test)
-print(fit2$strata)
-
-
-class(fit1$strata)
-print(fit1$strata)
-str(fit1$strata)
-length(fit1$strata)
-levels(fit1$strata)
-anyNA(fit1$strata)
-names(fit1$strata)
-attributes(fit1$strata)
-methods(class = "survfit")
-str(fit1)
-str(fit2)
-identical(fit1$strata, fit2$strata)
-
-
-
-
 #------------------------------------------------------------------------------------------
 # 【参考】フォーミュラ型
 # survfit関数で用いられているフォーミュラ型は, 「~」の左側と右側に変数名を記述するR特有の表現
@@ -530,4 +494,61 @@ example4 <- eval(example4, parent.frame())
 design_matrix_n <- model.matrix(out_terms, example4)
 print(design_matrix_n)
 
+#------------------------------------------------------------------------------------------
+# 【参考】ggsurvfit関数とkm.curve関数
+# ggplot系の生存曲線を描くための関数のひとつにggsurvfit関数がある
+# ggsurvfit関数は, km.curve関数やsurvfit関数のアウトプット（survfit型オブジェクト）を自動で図示してくれる
 
+data(diabetes.complications)
+diabetes.complications$d <- as.numeric(diabetes.complications$epsilon>0)
+out_km <- km.curve(Surv(t, d)~fruitq1, data=diabetes.complications, use.ggsurvfit = FALSE, label.strata=c("High fruit intake", "Low fruit intake"))
+#out_km <- survfit(Surv(t, d)~fruitq1, data=diabetes.complications)
+
+# ggplot系の関数は"+"を用いてグラフに要素を追加できる
+library(ggsurvfit);
+out_ggsurvfit <- ggsurvplot(out_km)
+print(out_ggsurvfit)
+
+# テーマを変更
+out_ggsurvfit <- ggsurvfit(out_km) +
+  theme_classic()
+print(out_ggsurvfit)
+
+# フォントを変更
+out_ggsurvfit <- ggsurvfit(out_km) +
+  theme_classic() +
+  labs(x = "Time (months)",
+     y = "Risk of diabetic retinopathy") +
+  lims(x = c(0, 10),
+       y = c(0, 1)) +
+  theme(axis.title = element_text(size = 16, family = "serif"),
+      axis.text = element_text(size = 14, family = "serif"),
+      legend.position = "top",
+      legend.text = element_text(size = 14, family = "serif"))
+print(out_ggsurvfit)
+
+# 信頼区間と打ち切りを表示
+out_ggsurvfit <- ggsurvfit(out_km) +
+  add_confidence_interval() +
+  add_censor_mark() +
+  labs(x = "Time (months)",
+       y = "Risk of diabetic retinopathy") +
+  lims(x = c(0, 10),
+       y = c(0, 1)) +
+  scale_ggsurvfit(x_scales = list(breaks = seq(0, 10, by = 2)),
+                  y_scales = list(breaks = seq(0, 1, by = 0.2)))+
+  theme_classic() +
+  scale_color_manual(values = c('#54738E', '#82AC7C')) +
+  scale_fill_manual(values = c('#54738E', '#82AC7C')) +
+  theme(axis.title = element_text(size = 16, family = "serif"),
+        axis.text = element_text(size = 14, family = "serif"),
+        legend.position = "top",
+        legend.text = element_text(size = 14, family = "serif"))
+print(out_ggsurvfit)
+
+
+# km.curve関数は自動で生存曲線を描くことができるが, 内部ではggsurvfit関数にsurvfit型オブジェクトを渡している
+out_km <- km.curve(Surv(t, d)~fruitq1, data=diabetes.complications, label.strata=c("High fruit intake", "Low fruit intake"), time.point = c(4,8))
+out_km <- km.curve(Surv(t, d)~fruitq1, data=diabetes.complications, label.strata=c("High fruit intake", "Low fruit intake"), conf.type = "none")
+
+out_km <- km.curve(Surv(t, d)~fruitq1, data=diabetes.complications, label.strata=c("High fruit intake", "Low fruit intake"), lims.x = c(0, 9))
