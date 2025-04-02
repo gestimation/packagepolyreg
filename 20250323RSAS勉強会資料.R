@@ -407,5 +407,3 @@ microbenchmark(
   calculateKaplanMeier(t_test, as.numeric(epsilon_test>0)),
   calculateKaplanMeier_new(t_test, as.numeric(epsilon_test>0))
 )
-
-
