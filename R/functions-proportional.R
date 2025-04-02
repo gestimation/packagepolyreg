@@ -177,3 +177,379 @@ reportProportional <- function(nuisance.model,
   class(tg$event1) <- class(tg$event2) <- "modelsummary_list"
   return(tg)
 }
+
+
+solveEstimatingEquationC <- function(
+    nuisance.model,
+    exposure,
+    strata,
+    sorted_data,
+    estimand = estimand,
+    optim.method = optim.method,
+    data.initial.values,
+    prob.bound = 1e-5
+) {
+  outcome.type <- 'COMPETINGRISK'
+  ip.weight <- calculateIPCW(formula = nuisance.model, data = sorted_data, code.censoring=code.censoring, strata=strata, specific.time = estimand$time.point)
+
+  makeObjectiveFunction <- function() {
+    out_ipcw <- list()
+    initial.CIFs <- NULL
+    estimating_equation_i <- function(p) {
+      out_ipcw <- estimating_equation_ipcw(
+        formula = nuisance.model,
+        data = sorted_data,
+        exposure = exposure,
+        ip.weight = ip.weight,
+        alpha_beta = p,
+        estimand = estimand,
+        optim.method = optim.method,
+        prob.bound = prob.bound,
+        initial.CIFs = initial.CIFs)
+      out_ipcw <<- out_ipcw
+      return(out_ipcw$ret)
+    }
+    setInitialCIFs <- function(new.CIFs) {
+      initial.CIFs <<- new.CIFs
+    }
+    getResults <- function() {
+      out_ipcw
+    }
+    list(
+      estimating_equation_i = estimating_equation_i,
+      setInitialCIFs = setInitialCIFs,
+      getResults = getResults
+    )
+  }
+
+  iteration <- 0
+  max_param_diff  <- Inf
+  obj <- makeObjectiveFunction()
+  sol_list <- list()
+  diff_list <- list()
+
+   current_params <- alpha_beta_0
+   while ((iteration < optim.parameter2) & (max_param_diff > optim.parameter1)) {
+     iteration <- iteration + 1
+     if (outer.optim.method == "nleqslv" | outer.optim.method == "Broyden"){
+       sol <- nleqslv(current_params, obj$estimating_equation_i, method="Broyden", control=list(maxit=optim.parameter5, allowSingular=FALSE))
+       new_params <- sol$x
+     } else if (outer.optim.method == "Newton"){
+       sol <- nleqslv(current_params, obj$estimating_equation_i, method="Newton", control=list(maxit=optim.parameter5, allowSingular=FALSE))
+       new_params <- sol$x
+     } else if (outer.optim.method == "multiroot") {
+       sol <- multiroot(obj$estimating_equation_i, start = current_params, maxiter=optim.parameter5, rtol = optim.parameter4)
+       new_params <- sol$root
+     } else if (outer.optim.method == "optim" | outer.optim.method == "SANN"){
+       sol <- optim(par = current_params,
+                    fn = function(params) {
+                      sum(obj$estimating_equation_i(params)^2)
+                    },
+                    method = "SANN",  control = list(maxit=optim.parameter5, reltol=optim.parameter4)
+       )
+       new_params <- sol$par
+     } else if (outer.optim.method == "BFGS"){
+       sol <- optim(par = current_params,
+                    fn = function(params) {
+                      sum(obj$estimating_equation_i(params)^2)
+                    },
+                    method = "BFGS",  control = list(maxit=optim.parameter5, reltol=optim.parameter4)
+       )
+       new_params <- sol$par
+     }
+     if (any(abs(new_params) > optim.parameter3)) {
+       stop("Estimates are either too large or too small, and convergence might not be achieved.")
+     }
+     param_diff <- abs(new_params - current_params)
+     max_param_diff   <- max(param_diff)
+     current_params <- new_params
+
+     obj$setInitialCIFs(obj$getResults()$potential.CIFs)
+     sol_list[[iteration]] <- sol
+     diff_list[[iteration]] <- max_param_diff
+   }
+  return(current_params)
+}
+
+
+
+
+solveEstimatingEquationC <- function(
+    nuisance.model,
+    exposure,
+    strata,
+    sorted_data,
+    estimand = estimand,
+    optim.method = optim.method,
+    data.initial.values,
+    prob.bound = 1e-5
+) {
+  outcome.type <- 'COMPETINGRISK'
+  ip.weight <- calculateIPCW(formula = nuisance.model, data = sorted_data, code.censoring=code.censoring, strata=strata, specific.time = estimand$time.point)
+
+  makeObjectiveFunction <- function() {
+    out_ipcw <- list()
+    initial.CIFs <- NULL
+    estimating_equation_i <- function(p) {
+      out_ipcw <- estimating_equation_ipcw(
+        formula = nuisance.model,
+        data = sorted_data,
+        exposure = exposure,
+        ip.weight = ip.weight,
+        alpha_beta = p,
+        estimand = estimand,
+        optim.method = optim.method,
+        prob.bound = prob.bound,
+        initial.CIFs = initial.CIFs)
+      out_ipcw <<- out_ipcw
+      return(out_ipcw$ret)
+    }
+    setInitialCIFs <- function(new.CIFs) {
+      initial.CIFs <<- new.CIFs
+    }
+    getResults <- function() {
+      out_ipcw
+    }
+    list(
+      estimating_equation_i = estimating_equation_i,
+      setInitialCIFs = setInitialCIFs,
+      getResults = getResults
+    )
+  }
+
+  iteration <- 0
+  max_param_diff  <- Inf
+  obj <- makeObjectiveFunction()
+  sol_list <- list()
+  diff_list <- list()
+
+  current_params <- alpha_beta_0
+  while ((iteration < optim.parameter2) & (max_param_diff > optim.parameter1)) {
+    iteration <- iteration + 1
+    if (outer.optim.method == "nleqslv" | outer.optim.method == "Broyden"){
+      sol <- nleqslv(current_params, obj$estimating_equation_i, method="Broyden", control=list(maxit=optim.parameter5, allowSingular=FALSE))
+      new_params <- sol$x
+    } else if (outer.optim.method == "Newton"){
+      sol <- nleqslv(current_params, obj$estimating_equation_i, method="Newton", control=list(maxit=optim.parameter5, allowSingular=FALSE))
+      new_params <- sol$x
+    } else if (outer.optim.method == "multiroot") {
+      sol <- multiroot(obj$estimating_equation_i, start = current_params, maxiter=optim.parameter5, rtol = optim.parameter4)
+      new_params <- sol$root
+    } else if (outer.optim.method == "optim" | outer.optim.method == "SANN"){
+      sol <- optim(par = current_params,
+                   fn = function(params) {
+                     sum(obj$estimating_equation_i(params)^2)
+                   },
+                   method = "SANN",  control = list(maxit=optim.parameter5, reltol=optim.parameter4)
+      )
+      new_params <- sol$par
+    } else if (outer.optim.method == "BFGS"){
+      sol <- optim(par = current_params,
+                   fn = function(params) {
+                     sum(obj$estimating_equation_i(params)^2)
+                   },
+                   method = "BFGS",  control = list(maxit=optim.parameter5, reltol=optim.parameter4)
+      )
+      new_params <- sol$par
+    }
+    if (any(abs(new_params) > optim.parameter3)) {
+      stop("Estimates are either too large or too small, and convergence might not be achieved.")
+    }
+    param_diff <- abs(new_params - current_params)
+    max_param_diff   <- max(param_diff)
+    current_params <- new_params
+
+    obj$setInitialCIFs(obj$getResults()$potential.CIFs)
+    sol_list[[iteration]] <- sol
+    diff_list[[iteration]] <- max_param_diff
+  }
+  return(current_params)
+}
+
+
+
+solveEstimatingEquationS <- function(
+    nuisance.model,
+    exposure,
+    strata,
+    sorted_data,
+    estimand = estimand,
+    optim.method = optim.method,
+    data.initial.values,
+    prob.bound = 1e-5
+) {
+  outcome.type <- 'SURVIVAL'
+  ip.weight <- calculateIPCW(formula = nuisance.model, data = sorted_data, code.censoring=code.censoring, strata=strata, specific.time = estimand$time.point)
+
+  makeObjectiveFunction <- function() {
+    out_ipcw <- list()
+    initial.CIFs <- NULL
+    estimating_equation_s <- function(p) {
+      out_ipcw <- estimating_equation_survival(
+        formula = nuisance.model,
+        data = sorted_data,
+        exposure = exposure,
+        ip.weight = ip.weight,
+        alpha_beta = p,
+        estimand = estimand,
+        prob.bound = prob.bound,
+        initial.CIFs = initial.CIFs)
+      out_ipcw <<- out_ipcw
+      return(out_ipcw$ret)
+    }
+    setInitialCIFs <- function(new.CIFs) {
+      initial.CIFs <<- new.CIFs
+    }
+    getResults <- function() {
+      out_ipcw
+    }
+    list(
+      estimating_equation_s = estimating_equation_s,
+      setInitialCIFs = setInitialCIFs,
+      getResults = getResults
+    )
+  }
+
+  iteration <- 0
+  max_param_diff  <- Inf
+  obj <- makeObjectiveFunction()
+  sol_list <- list()
+  diff_list <- list()
+
+  current_params <- alpha_beta_0
+  while ((iteration < optim.parameter2) & (max_param_diff > optim.parameter1)) {
+    iteration <- iteration + 1
+    if (outer.optim.method == "nleqslv" | outer.optim.method == "Broyden"){
+      sol <- nleqslv(current_params, obj$estimating_equation_s, method="Broyden", control=list(maxit=optim.parameter5, allowSingular=FALSE))
+      new_params <- sol$x
+    } else if (outer.optim.method == "Newton"){
+      sol <- nleqslv(current_params, obj$estimating_equation_s, method="Newton", control=list(maxit=optim.parameter5, allowSingular=FALSE))
+      new_params <- sol$x
+    } else if (outer.optim.method == "multiroot") {
+      sol <- multiroot(obj$estimating_equation_s, start = current_params, maxiter=optim.parameter5, rtol = optim.parameter4)
+      new_params <- sol$root
+    } else if (outer.optim.method == "optim" | outer.optim.method == "SANN"){
+      sol <- optim(par = current_params,
+                   fn = function(params) {
+                     sum(obj$estimating_equation_s(params)^2)
+                   },
+                   method = "SANN",  control = list(maxit=optim.parameter5, reltol=optim.parameter4)
+      )
+      new_params <- sol$par
+    } else if (outer.optim.method == "BFGS"){
+      sol <- optim(par = current_params,
+                   fn = function(params) {
+                     sum(obj$estimating_equation_s(params)^2)
+                   },
+                   method = "BFGS",  control = list(maxit=optim.parameter5, reltol=optim.parameter4)
+      )
+      new_params <- sol$par
+    }
+    if (any(abs(new_params) > optim.parameter3)) {
+      stop("Estimates are either too large or too small, and convergence might not be achieved.")
+    }
+    param_diff     <- abs(new_params - current_params)
+    max_param_diff <- max(param_diff)
+    current_params <- new_params
+
+    obj$setInitialCIFs(obj$getResults()$potential.CIFs)
+    sol_list[[iteration]] <- sol
+    diff_list[[iteration]] <- max_param_diff
+  }
+  return(current_params)
+}
+
+
+
+solveEstimatingEquationB <- function(
+    nuisance.model,
+    exposure,
+    strata,
+    sorted_data,
+    estimand = estimand,
+    optim.method = optim.method,
+    data.initial.values,
+    prob.bound = 1e-5
+) {
+  outcome.type <- 'BINOMIAL'
+  ip.weight <- rep(1,nrow(sorted_data))
+
+  makeObjectiveFunction <- function() {
+    out_ipcw <- list()
+    initial.CIFs <- NULL
+    estimating_equation_i <- function(p) {
+      out_ipcw <- estimating_equation_ipcw(
+        formula = nuisance.model,
+        data = sorted_data,
+        exposure = exposure,
+        ip.weight = ip.weight,
+        alpha_beta = p,
+        estimand = estimand,
+        optim.method = optim.method,
+        prob.bound = prob.bound,
+        initial.CIFs = initial.CIFs)
+      out_ipcw <<- out_ipcw
+      return(out_ipcw$ret)
+    }
+    setInitialCIFs <- function(new.CIFs) {
+      initial.CIFs <<- new.CIFs
+    }
+    getResults <- function() {
+      out_ipcw
+    }
+    list(
+      estimating_equation_i = estimating_equation_i,
+      setInitialCIFs = setInitialCIFs,
+      getResults = getResults
+    )
+  }
+
+  iteration <- 0
+  max_param_diff  <- Inf
+  obj <- makeObjectiveFunction()
+  sol_list <- list()
+  diff_list <- list()
+
+  current_params <- alpha_beta_0
+  while ((iteration < optim.parameter2) & (max_param_diff > optim.parameter1)) {
+    iteration <- iteration + 1
+    if (outer.optim.method == "nleqslv" | outer.optim.method == "Broyden"){
+      sol <- nleqslv(current_params, obj$estimating_equation_i, method="Broyden", control=list(maxit=optim.parameter5, allowSingular=FALSE))
+      new_params <- sol$x
+    } else if (outer.optim.method == "Newton"){
+      sol <- nleqslv(current_params, obj$estimating_equation_i, method="Newton", control=list(maxit=optim.parameter5, allowSingular=FALSE))
+      new_params <- sol$x
+    } else if (outer.optim.method == "multiroot") {
+      sol <- multiroot(obj$estimating_equation_i, start = current_params, maxiter=optim.parameter5, rtol = optim.parameter4)
+      new_params <- sol$root
+    } else if (outer.optim.method == "optim" | outer.optim.method == "SANN"){
+      sol <- optim(par = current_params,
+                   fn = function(params) {
+                     sum(obj$estimating_equation_i(params)^2)
+                   },
+                   method = "SANN",  control = list(maxit=optim.parameter5, reltol=optim.parameter4)
+      )
+      new_params <- sol$par
+    } else if (outer.optim.method == "BFGS"){
+      sol <- optim(par = current_params,
+                   fn = function(params) {
+                     sum(obj$estimating_equation_i(params)^2)
+                   },
+                   method = "BFGS",  control = list(maxit=optim.parameter5, reltol=optim.parameter4)
+      )
+      new_params <- sol$par
+    }
+    if (any(abs(new_params) > optim.parameter3)) {
+      stop("Estimates are either too large or too small, and convergence might not be achieved.")
+    }
+    param_diff <- abs(new_params - current_params)
+    max_param_diff   <- max(param_diff)
+    current_params <- new_params
+
+    obj$setInitialCIFs(obj$getResults()$potential.CIFs)
+    sol_list[[iteration]] <- sol
+    diff_list[[iteration]] <- max_param_diff
+  }
+  return(current_params)
+}
+

@@ -520,28 +520,31 @@ estimating_equation_proportional <- function(
   return(out)
 }
 
+createAtRiskMatrix <- function(t) {
+  atrisk <- outer(t, t, "<=")
+  return(atrisk)
+}
+
 calculateKaplanMeier <- function(t, d){
-  n = length(t)
-  data = data.frame(t = t, d = d, id = 1:n)
-  sorted_data = data[order(data$t), ]
-  sorted_t = sorted_data$t
-  sorted_d = sorted_data$d
-  sorted_id = sorted_data$id
-  t_matrix = matrix(rep(sorted_t, each = n), nrow = n, byrow = TRUE)
-  atrisk = t(t_matrix) >= t_matrix
-  n_atrisk = rowSums(atrisk)
-  s = 1 - sorted_d / n_atrisk
-  log_s = log(s)
-  km = exp(cumsum(log_s))
-  data = data.frame(id=sorted_id, km=km)
-  sorted_data = data[order(data$id), ]
-  km = sorted_data$km
+  n <- length(t)
+  data <- data.frame(t = t, d = d, id = 1:n)
+  sorted_data <- data[order(data$t), ]
+  sorted_t <- sorted_data$t
+  sorted_d <- sorted_data$d
+  sorted_id <- sorted_data$id
+  atrisk <- createAtRiskMatrix(sorted_t)
+  n_atrisk <- rowSums(atrisk)
+  s <- 1 - sorted_d / n_atrisk
+  km <- cumprod(s)
+  data <- data.frame(id=sorted_id, km=km)
+  sorted_data <- data[order(data$id), ]
+  km <- sorted_data$km
   return(km)
 }
 
 calculateNelsonAalen <- function(t, d) {
-  atrisk <- outer(t, t, ">=")
-  n_atrisk <- colSums(atrisk)
+  atrisk <- createAtRiskMatrix(t)
+  n_atrisk <- rowSums(atrisk)
   na <- d / n_atrisk
   return(na)
 }
