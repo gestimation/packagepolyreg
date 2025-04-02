@@ -29,7 +29,6 @@ estimateCIF <-  function(formula, data, code.event1, code.event2, code.censoring
                     nrow = length(sorted_t), byrow = TRUE)
   atrisk <- t(t_matrix) >= t_matrix
   n_atrisk <- rowSums(atrisk)
-  print(n_atrisk)
 
   s <- 1 - sorted_epsilon_all / n_atrisk
   log_s <- log(s)
@@ -45,7 +44,6 @@ estimateCIF <-  function(formula, data, code.event1, code.event2, code.censoring
   # calculate dF1, dF2
   dF1 <- km_lag * (epsilon1 / n_atrisk)
   dF2 <- km_lag * (epsilon2 / n_atrisk)
-  print(dF1)
 
   # cumsum
   CIF1 <- cumsum(dF1)
