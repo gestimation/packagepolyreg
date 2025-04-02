@@ -397,13 +397,14 @@ createTestData <- function(n, w, first_zero=FALSE, last_zero=FALSE, subset_prese
 
 library(microbenchmark)
 library(survival)
+library(ggsurvfit)
 df_test <- createTestData(10, 1, first_zero=TRUE, last_zero=FALSE, subset_present=FALSE, logical_strata=FALSE, na_strata=TRUE)
 microbenchmark(calculateKaplanMeier1(df_test$t, df_test$d),
                calculateKaplanMeier2(df_test$t, df_test$d),
                calculateKaplanMeier3(df_test$t, df_test$d),
                calculateKaplanMeier4(df_test$t, df_test$d),
                survfit(Surv(t, d)~1, data=df_test),
-               km.curve(Surv(t, d)~1, data=df_test),
+               km.curve(Surv(t, d)~1, data=df_test, use.ggsurvfit = FALSE, use.polyreg = FALSE),
                times = 20)
 
 
