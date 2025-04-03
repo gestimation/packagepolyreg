@@ -34,6 +34,12 @@ create_package("<path of R project>")
 library(devtools)
 use_git()
 
+#-- GitHubメードアドレス・アカウント名の登録
+#system("git config --global user.name 'Your Name'")
+#system("git config --global user.email 'youremail@example.com'")
+#system("git config user.name 'Your Name'")
+#system("git config user.email 'youremail@example.com'")
+
 #------------------------------------------------------------------------------------------
 # Rパッケージのドキュメント編集
 # DESCRIPTIONファイルの編集（RStudio右下Filesから開ける）
@@ -210,7 +216,7 @@ calculateKaplanMeier1 <- function(t, d){
   return(km)
 }
 
-survival_time <- rexp(N, rate = lambda)     # 指数分布から生存時間を発生
+survival_time <- rexp(N, rate = 0.2)     # 指数分布から生存時間を発生
 censoring_time <- rexp(N, rate = 0.5)       # 指数分布から打ち切り時間を発生
 event <- as.numeric(survival_time<=censoring_time)
 observed_time <- event*survival_time + (1-event)*censoring_time
@@ -407,6 +413,12 @@ microbenchmark(calculateKaplanMeier1(df_test$t, df_test$d),
                km.curve(Surv(t, d)~1, data=df_test, use.ggsurvfit = FALSE, use.polyreg = FALSE),
                times = 20)
 
+#a <- km.curve(Surv(t, d)~1, data=df_test, use.ggsurvfit = FALSE, use.polyreg = FALSE, error="siatis")
+#summary(a)
+#df_test <- createTestData(10, 1, first_zero=TRUE, last_zero=FALSE, subset_present=FALSE, logical_strata=FALSE, na_strata=FALSE)
+#df_test$strata_ <- as.numeric(df_test$strata)
+#df_test$strata_
+#calculateKM_rcpp(t=df_test$t, d=df_test$d, error = "greenwood", strata=df_test$strata_)
 
 #------------------------------------------------------------------------------------------
 # 【参考】フォーミュラ型
