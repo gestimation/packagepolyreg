@@ -56,10 +56,16 @@ km.curve <- function(formula,
   checkDependentPackages()
   out_readSurv <- readSurv(formula, data, weights, code.event, code.censoring, subset, na.action)
   out_km <- calculateKM_rcpp(out_readSurv$t, out_readSurv$d, out_readSurv$w, as.integer(out_readSurv$strata), error)
+  if (!all(as.integer(out_readSurv$strata) == 1) & (is.null(label.strata))) {
+    names(out_km$strata) <- levels(as.factor(out_readSurv$strata))
+  } else if (!all(as.integer(out_readSurv$strata) == 1)) {
+    names(out_km$strata) <- label.strata
+  }
   out_ci <- calculateCI(out_km, conf.int, conf.type, conf.lower)
   if (is.null(lims.x)) {
     lims.x <- c(0, max(out_readSurv$t))
   }
+
   if (all(as.integer(out_readSurv$strata) == 1)) {
     survfit_object <- list(
       time = out_km$time,
@@ -77,11 +83,6 @@ km.curve <- function(formula,
       method = "Kaplan-Meier"
     )
   } else {
-    if (is.null(label.strata)) {
-      names(out_km$strata) <- levels(as.factor(out_readSurv$strata))
-    } else {
-      names(out_km$strata) <- label.strata
-    }
     survfit_object <- list(
       time = out_km$time,
       surv = out_km$surv,
@@ -326,7 +327,7 @@ cppFunction('
 Rcpp::List calculateKM_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector d,
                                     Rcpp::NumericVector w = Rcpp::NumericVector::create(),
                                     Rcpp::IntegerVector strata = Rcpp::IntegerVector::create(),
-                                    Rcpp::CharacterVector error = Rcpp::CharacterVector::create("greenwood")) {
+                                    std::string error = "greenwood") {
 
 //  Rcpp::Rcout << "Method: " << error[0] << std::endl;
 
@@ -403,9 +404,9 @@ Rcpp::List calculateKM_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector d,
           }
         }
         if (n_i > d_i) {
-          if (error[0] == "tsiatis") {
+          if (error == "tsiatis") {
             sum_se += (d_i / (n_i * n_i));
-          } else {
+          } else if (error == "greenwood") {
             sum_se += (d_i / (n_i * (n_i - d_i)));
           }
         } else {
@@ -441,7 +442,6 @@ Rcpp::List calculateKM_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector d,
     for (int i = 0; i < u; ++i) {
       double time = unique_times[i];
       double weighted_n_i = 0;
-      double unweighted_n_i = 0;
       for (int j = 0; j < n; ++j) {
         if (t[j] >= time) {
           weighted_n_i += w[j];
@@ -486,9 +486,9 @@ Rcpp::List calculateKM_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector d,
           }
         }
         if (n_i > d_i) {
-          if (error[0] == "tsiatis") {
+          if (error == "tsiatis") {
             sum_se += (d_i / (n_i * n_i));
-          } else {
+          } else if (error == "greenwood") {
             sum_se += (d_i / (n_i * (n_i - d_i)));
           }
         } else {
@@ -581,9 +581,9 @@ Rcpp::List calculateKM_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector d,
             }
           }
           if (n_i > d_i) {
-            if (error[0] == "tsiatis") {
+            if (error == "tsiatis") {
               sum_se += (d_i / (n_i * n_i));
-            } else {
+            } else if (error == "greenwood") {
               sum_se += (d_i / (n_i * (n_i - d_i)));
             }
           } else {
@@ -679,9 +679,9 @@ Rcpp::List calculateKM_rcpp(Rcpp::NumericVector t, Rcpp::IntegerVector d,
             }
           }
           if (n_i > d_i) {
-            if (error[0] == "tsiatis") {
+            if (error == "tsiatis") {
               sum_se += (d_i / (n_i * n_i));
-            } else {
+            } else if (error == "greenwood") {
               sum_se += (d_i / (n_i * (n_i - d_i)));
             }
           } else {
