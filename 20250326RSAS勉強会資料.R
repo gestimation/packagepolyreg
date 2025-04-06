@@ -552,3 +552,124 @@ out_km <- km.curve(Surv(t, d)~fruitq1, data=diabetes.complications, label.strata
 out_km <- km.curve(Surv(t, d)~fruitq1, data=diabetes.complications, label.strata=c("High fruit intake", "Low fruit intake"), conf.type = "none")
 
 out_km <- km.curve(Surv(t, d)~fruitq1, data=diabetes.complications, label.strata=c("High fruit intake", "Low fruit intake"), lims.x = c(0, 9))
+
+#------------------------------------------------------------------------------------------
+# 【参考】gtsummaryパッケージ
+
+if (!require("gtsummary")) install.packages("gtsummary")
+if (!require("flextable")) install.packages("flextable")
+library(gtsummary)
+library(flextable)
+library(broom)
+data(diabetes.complications)
+
+# ベースラインデータの表
+table1 <- diabetes.complications |>
+  select(fruitq1, age, sex) |>
+  tbl_summary(by = fruitq1,
+              type = list(c(age) ~ "continuous",
+                          c(sex) ~ "categorical"),
+              statistic = list(all_continuous() ~ "{mean} ({sd})")) |>
+  add_n()
+table1
+
+# ベースラインデータの表+p値
+get_kruskal.fisher.test <- function(data, variable, by, ...) {
+  variable <- data[[variable]]
+  by <- data[[by]]
+  if (is.numeric(variable)|is.integer(variable)) {
+    p <- kruskal.test(variable ~ as.factor(by))$p.value
+  } else if (is.factor(variable)|is.logical(variable)) {
+    table <- table(variable, by)
+    p <- fisher.test(table)$p.value
+  }
+  if (p<0.05) {
+    p_text <- c("<0.05")
+  } else
+  {
+    p_text <- paste0(round(p, digit=2))
+  }
+  return(p_text)
+}
+
+table1_p_value <- diabetes.complications |>
+  select(fruitq1, age, sex, sbp) |>
+  tbl_summary(by = fruitq1,
+              type = list(c(age) ~ "continuous",
+                          c(sbp) ~ "continuous",
+                          c(sex) ~ "categorical"),
+              statistic = list(all_continuous() ~ "{mean} ({sd})")) |>
+  add_stat(fns = everything() ~ get_kruskal.fisher.test) |>
+  modify_header(add_stat_1 = "**p**", all_stat_cols() ~ "**{level}**") |>
+  as_gt() |>
+  gt::tab_source_note(gt::md("*Kruskal-Wallis test or Fisher exact test*"))
+table1_p_value
+
+
+# ベースラインデータの表+平均の差
+table1_difference <- diabetes.complications |>
+  select(fruitq1, age, sex, sbp) |>
+  tbl_summary(by = fruitq1,
+              type = list(c(age) ~ "continuous",
+                          c(sex) ~ "dichotomous",
+                          c(sbp) ~ "continuous"),
+              statistic = list(all_continuous() ~ "{mean} ({sd})")) |>
+  add_difference()
+table1_difference
+
+# ベースラインデータの表+平均の差
+get_glm <- function(data, variable, by, ...) {
+  glm(data[[variable]] ~ as.factor(data[[by]])) |>
+    broom::tidy() |>
+    tail(1) |>
+    select(estimate, p.value)
+}
+table1_difference <- diabetes.complications |>
+  select(fruitq1, age, sbp) |>
+  tbl_summary(by = fruitq1,
+              type = list(c(age) ~ "continuous",
+                          c(sbp) ~ "continuous"),
+              statistic = list(all_continuous() ~ "{mean} ({sd})")) |>
+  add_stat(fns = everything() ~ get_glm) |>
+  modify_header(estimate = "**Difference**", p.value = "**p**") |>
+  as_gt() |>
+  gt::tab_source_note(gt::md("*Differences are estimated by linear models*"))
+table1_difference
+
+# イベント数の集計
+library(labelled)
+attr(diabetes.complications$t, "label") <- "Follow-up years"
+diabetes.complications$d1 <- as.integer(diabetes.complications$epsilon==1)
+attr(diabetes.complications$d1, "label") <- "Diabetic retinopathy"
+diabetes.complications$d2 <- as.integer(diabetes.complications$epsilon==2)
+attr(diabetes.complications$d2, "label") <- "Macrovascular diseases"
+table2 <- diabetes.complications |>
+  select(fruitq1, d1, d2, t) |>
+  tbl_summary(by = fruitq1,
+              type = list(c(d1) ~ "dichotomous",
+                          c(d2) ~ "dichotomous",
+                          c(t) ~ "continuous"),
+              statistic = list(all_continuous() ~ "{min}-{max}")) |>
+  add_stat(fns = everything() ~ get_kruskal.fisher.test) |>
+  modify_header(add_stat_1 = "**p**", all_stat_cols() ~ "**{level}**") |>
+  as_gt() |>
+  gt::tab_source_note(gt::md("*Kruskal-Wallis test or Fisher exact test*"))
+table2
+
+# Kaplan-Meier推定量
+#install.packages("cardx")
+#library(survival)
+out_survfit1 <- survfit(Surv(t, d1)~1, diabetes.complications)
+out_survfit2 <- survfit(Surv(t, d1)~sex, diabetes.complications)
+out_survfit3 <- survfit(Surv(t, d1)~fruitq1, diabetes.complications)
+out_survfit <- list(out_survfit1, out_survfit2, out_survfit3)
+table3 <- tbl_survfit(out_survfit, times = c(4, 8), label_header = "**{time} years**") |>
+  modify_spanning_header(all_stat_cols() ~ "**Free from diabetic retinopathy**")
+table3
+
+# Cox回帰
+attr(diabetes.complications$sex, "label") <- "Sex (woman v.s. man)"
+attr(diabetes.complications$fruitq1, "label") <- "Fruit intake (low v.s. high)"
+out_coxph <- coxph(Surv(t, d1) ~ sex+fruitq1, data=diabetes.complications)
+tbl_regression(out_coxph, exponentiate = TRUE)
+
