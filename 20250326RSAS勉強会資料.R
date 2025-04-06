@@ -686,3 +686,108 @@ attr(diabetes.complications$fruitq1, "label") <- "Fruit intake (low v.s. high)"
 out_coxph <- coxph(Surv(t, d1) ~ sex+fruitq1, data=diabetes.complications)
 tbl_regression(out_coxph, exponentiate = TRUE)
 
+
+
+# Jack knife計算速度の評価
+
+library(jackknifeR)
+library(boot)
+jknife <- function(x, fxn, ci=0.95) {
+  theta <- fxn(x)
+  n <- nrow(x)
+  partials <- rep(0,n)
+  for (i in 1:n){
+    partials[i] <- fxn(x[-i,])
+  }
+  pseudos <- (n*theta) - (n-1)*partials
+  jack.est <- mean(pseudos)
+  jack.se <- sqrt(var(pseudos)/n)
+  alpha = 1-ci
+  CI <- qt(alpha/2,n-1,lower.tail=FALSE)*jack.se
+  jack.ci <- c(jack.est - CI, jack.est + CI)
+  list(est=jack.est, se=jack.se, ci=jack.ci, pseudos = pseudos, partials=partials)
+}
+
+fn12 <- function(data) {
+  out_km <- calculateKM_rcpp(data$t, data$d, data$w, as.integer(data$strata), "none")
+  return(out_km$surv[30])
+}
+
+fn3 <- function(data, i) {
+  data <- data[i,]
+  out_km <- calculateKM_rcpp(data$t, data$d, data$w, as.integer(data$strata), "none")
+  return(out_km$surv[30])
+}
+
+fn3w <- function(data, w) {
+  out_km <- calculateKM_rcpp(data$t, data$d, w, as.integer(data$strata), "none")
+  return(out_km$surv[30])
+}
+
+#----------------------------------------
+data(diabetes.complications)
+diabetes.complications$d <- as.numeric(diabetes.complications$epsilon>0)
+diabetes.complications$w <- rep(1,nrow(diabetes.complications))
+df_test_ <- diabetes.complications[1:200,]
+jk1 <- jackknife(statistic = fn12, d = 1, data = df_test, numCores= 2)
+print(jk1)
+
+jk2 <- jknife(df_test_, fn12, ci=0.95)
+print(jk2$se)
+
+jk3 <- empinf(data=df_test_, statistic=fn3, type="jack", stype="i")
+se3 <- sd(jk3)/sqrt(length(jk3))
+print(se3)
+
+jk3w <- empinf(data=df_test_, statistic=fn3w, type="jack", stype="w")
+se3w <- sd(jk3w)/sqrt(length(jk3w))
+print(se3w)
+
+library(ggsurvfit)
+out_km <- km.curve(Surv(t, d)~1, data=df_test_)
+print(out_km$std.err)
+print(out_km$time)
+print(df_test_$t[30])
+
+
+
+#----------------------------------------
+createTestData <- function(n, w, first_zero=FALSE, last_zero=FALSE, subset_present=FALSE, logical_strata=FALSE, na_strata=FALSE) {
+  one <- rep(1, n)
+  t <- c(1:(n/2), 1:(n/2))
+  epsilon <- rep(1, n)
+  epsilon[2] <- 2
+  epsilon[3] <- 2
+  if (first_zero==TRUE) {
+    epsilon[1] <- 0
+    epsilon[n/2+1] <- 0
+  }
+  if (last_zero==TRUE) {
+    epsilon[n/2] <- 0
+    epsilon[n] <- 0
+  }
+  w <- rep(w, n)
+  if (logical_strata==TRUE) {
+    strata <- (t %% 2 == 0)
+  } else {
+    strata <- as.factor((t %% 2 == 0))
+  }
+  if (na_strata==TRUE) {
+    strata[1] <- NA
+  }
+  subset <- rep(1, n)
+  if (subset_present==TRUE) {
+    subset[1] <- 0
+  }
+  d <- as.numeric(epsilon>0)
+  return(data.frame(id = 1:n, t = t, epsilon = epsilon, d = d, w = w, strata = strata, subset=subset))
+}
+
+library(microbenchmark)
+df_test <- createTestData(100, 1, first_zero=TRUE, last_zero=FALSE, subset_present=FALSE, logical_strata=FALSE, na_strata=FALSE)
+microbenchmark(jk1 <- jackknife(statistic = fn, d = 1, data = df_test, numCores= 2),
+               jk2 <- jknife(df_test, fn, ci=0.95),
+               jk3 <- empinf(data=df_test, statistic=fn_, type="jack", stype="i"),
+               times = 20)
+
+
