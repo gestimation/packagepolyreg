@@ -45,6 +45,7 @@ calcCIF_H <- function(
   # event2を1, event1を0に（event2のCIFのため）
   event_two <- ifelse(event_all == 2, 1, 0)
 
+  # 指摘：modelframeを使ってsurvfitに渡せばいいよね
 
   if(!devideByExposure){
     # s_hatのKaplan-Meier推定
@@ -69,27 +70,44 @@ calcCIF_H <- function(
     CIF1_value <- rep(NA, n_1)
     cum <- 0
     for(i in 1:n_1){
-      index <- sum(as.numeric((s_time-event1_time[i])<0))
+      index <- sum(s_time<event1_time[i])
       if(index!=0){
-        cum <- cum + n.event1[i]*s_surv[index]/s_atrisk[index]
+        cum <- cum + n.event1[i]*s_surv[index]/s_atrisk[index+1]
+        #指摘：indexの添え字がずれている！
+        #修正済
       }
       CIF1_value[i] <- cum
     }
     if(var_method == "Aalen"){
-      CIF1_var <- calcAalenVariance(CIF_time = event1_time,
+      #CIF1_var <- calcAalenVariance(CIF_time = event1_time,
+      #                              CIF_value = CIF1_value,
+      #                              n.event = n.event1,
+      #                              n.atrisk = s_atrisk,
+      #                              km_time = s_time,
+      #                              km_value = s_surv)
+      CIF1_var <- calcAalenVariance2(CIF_time = event1_time,
                                     CIF_value = CIF1_value,
-                                    n.event = n.event1,
+                                    n.event1 = n.event1,
+                                    n.event2 = n.event2,
                                     n.atrisk = s_atrisk,
                                     km_time = s_time,
                                     km_value = s_surv)
+
     }
     else if(var_method == "Delta"){
-      CIF1_var <- calcDeltaVariance(CIF_time = event1_time,
-                                    CIF_value = CIF1_value,
-                                    n.event = n.event1,
-                                    n.atrisk = s_atrisk,
-                                    km_time = s_time,
-                                    km_value = s_surv)
+      #CIF1_var <- calcDeltaVariance(CIF_time = event1_time,
+      #                              CIF_value = CIF1_value,
+      #                              n.event = n.event1,
+      #                              n.atrisk = s_atrisk,
+      #                              km_time = s_time,
+      #                              km_value = s_surv)
+      CIF1_var <- calcAalenVariance2(CIF_time = event1_time,
+                                     CIF_value = CIF1_value,
+                                     n.event1 = n.event1,
+                                     n.event2 = n.event2,
+                                     n.atrisk = s_atrisk,
+                                     km_time = s_time,
+                                     km_value = s_surv)
     }
     CIF1_SE <- sqrt(CIF1_var)
     CIF1 <- cbind(event1_time, CIF1_value, CIF1_SE)
@@ -100,27 +118,41 @@ calcCIF_H <- function(
     CIF2_value <- rep(NA, n_2)
     cum <- 0
     for(i in 1:n_2){
-      index <- sum(as.numeric((s_time-event2_time[i])<0))
+      index <- sum(s_time<event1_time[i])
       if(index!=0){
-        cum <- cum + n.event2[i]*s_surv[index]/s_atrisk[index]
+        cum <- cum + n.event2[i]*s_surv[index]/s_atrisk[index+1]
       }
       CIF2_value[i] <- cum
     }
     if(var_method == "Aalen"){
-      CIF2_var <- calcAalenVariance(CIF_time = event2_time,
-                                    CIF_value = CIF2_value,
-                                    n.event = n.event2,
-                                    n.atrisk = s_atrisk,
-                                    km_time = s_time,
-                                    km_value = s_surv)
+      #CIF2_var <- calcAalenVariance(CIF_time = event2_time,
+      #                              CIF_value = CIF2_value,
+      #                              n.event = n.event2,
+      #                              n.atrisk = s_atrisk,
+      #                              km_time = s_time,
+      #                              km_value = s_surv)
+      CIF2_var <- calcAalenVariance2(CIF_time = event1_time,
+                                     CIF_value = CIF1_value,
+                                     n.event1 = n.event1,
+                                     n.event2 = n.event2,
+                                     n.atrisk = s_atrisk,
+                                     km_time = s_time,
+                                     km_value = s_surv)
     }
     else if(var_method == "Delta"){
-      CIF2_var <- calcDeltaVariance(CIF_time = event2_time,
-                                    CIF_value = CIF2_value,
-                                    n.event = n.event2,
-                                    n.atrisk = s_atrisk,
-                                    km_time = s_time,
-                                    km_value = s_surv)
+      #CIF2_var <- calcDeltaVariance(CIF_time = event2_time,
+      #                              CIF_value = CIF2_value,
+      #                              n.event = n.event2,
+      #                              n.atrisk = s_atrisk,
+      #                              km_time = s_time,
+      #                              km_value = s_surv)
+      CIF2_var <- calcAalenVariance2(CIF_time = event1_time,
+                                     CIF_value = CIF1_value,
+                                     n.event1 = n.event1,
+                                     n.event2 = n.event2,
+                                     n.atrisk = s_atrisk,
+                                     km_time = s_time,
+                                     km_value = s_surv)
     }
     CIF2_SE <- sqrt(CIF2_var)
     CIF2 <- cbind(event2_time, CIF2_value, CIF2_SE)
@@ -214,24 +246,26 @@ calcCIF_H <- function(
     CIF1_value_0 <- rep(NA, n_1_0)
     cum <- 0
     for(i in 1:n_1_0){
-      index <- sum(as.numeric((s_time_0-event1_time_0[i])<0))
+      index <- sum(s_time_0<event1_time_0[i])
       if(index!=0){
-        cum <- cum + n.event1_0[i]*s_surv_0[index]/s_atrisk_0[index]
+        cum <- cum + n.event1_0[i]*s_surv_0[index]/s_atrisk_0[index+1]
       }
       CIF1_value_0[i] <- cum
     }
     if(var_method == "Aalen"){
-      CIF1_var_0 <- calcAalenVariance(CIF_time = event1_time_0,
+      CIF1_var_0 <- calcAalenVariance2(CIF_time = event1_time_0,
                                     CIF_value = CIF1_value_0,
-                                    n.event = n.event1_0,
+                                    n.event1 = n.event1_0,
+                                    n.event2 = n.event2_0,
                                     n.atrisk = s_atrisk_0,
                                     km_time = s_time_0,
                                     km_value = s_surv_0)
     }
     else if(var_method == "Delta"){
-      CIF1_var_0 <- calcDeltaVariance(CIF_time = event1_time_0,
+      CIF1_var_0 <- calcDeltaVariance2(CIF_time = event1_time_0,
                                     CIF_value = CIF1_value_0,
-                                    n.event = n.event1_0,
+                                    n.event1 = n.event1_0,
+                                    n.event2 = n.event2_0,
                                     n.atrisk = s_atrisk_0,
                                     km_time = s_time_0,
                                     km_value = s_surv_0)
@@ -245,24 +279,26 @@ calcCIF_H <- function(
     CIF1_value_1 <- rep(NA, n_1_1)
     cum <- 0
     for(i in 1:n_1_1){
-      index <- sum(as.numeric((s_time_1-event1_time_1[i])<0))
+      index <- sum(s_time_1<event1_time_1[i])
       if(index!=0){
-        cum <- cum + n.event1_1[i]*s_surv_1[index]/s_atrisk_1[index]
+        cum <- cum + n.event1_1[i]*s_surv_1[index]/s_atrisk_1[index+1]
       }
       CIF1_value_1[i] <- cum
     }
     if(var_method == "Aalen"){
-      CIF1_var_1 <- calcAalenVariance(CIF_time = event1_time_1,
+      CIF1_var_1 <- calcAalenVariance2(CIF_time = event1_time_1,
                                       CIF_value = CIF1_value_1,
-                                      n.event = n.event1_1,
+                                      n.event1 = n.event1_1,
+                                      n.event2 = n.event2_1,
                                       n.atrisk = s_atrisk_1,
                                       km_time = s_time_1,
                                       km_value = s_surv_1)
     }
     else if(var_method == "Delta"){
-      CIF1_var_1 <- calcDeltaVariance(CIF_time = event1_time_1,
+      CIF1_var_1 <- calcDeltaVariance2(CIF_time = event1_time_1,
                                       CIF_value = CIF1_value_1,
-                                      n.event = n.event1_1,
+                                      n.event1 = n.event1_1,
+                                      n.event2 = n.event2_1,
                                       n.atrisk = s_atrisk_1,
                                       km_time = s_time_1,
                                       km_value = s_surv_1)
@@ -276,24 +312,26 @@ calcCIF_H <- function(
     CIF2_value_0 <- rep(NA, n_2_0)
     cum <- 0
     for(i in 1:n_2_0){
-      index <- sum(as.numeric((s_time_0-event2_time_0[i])<0))
+      index <- sum(s_time_0<event2_time_0[i])
       if(index!=0){
-        cum <- cum + n.event2_0[i]*s_surv_0[index]/s_atrisk_0[index]
+        cum <- cum + n.event2_0[i]*s_surv_0[index]/s_atrisk_0[index+1]
       }
       CIF2_value_0[i] <- cum
     }
     if(var_method == "Aalen"){
-      CIF2_var_0 <- calcAalenVariance(CIF_time = event2_time_0,
+      CIF2_var_0 <- calcAalenVariance2(CIF_time = event2_time_0,
                                       CIF_value = CIF2_value_0,
-                                      n.event = n.event2_0,
+                                      n.event1 = n.event2_0,
+                                      n.event2 = n.event1_0,
                                       n.atrisk = s_atrisk_0,
                                       km_time = s_time_0,
                                       km_value = s_surv_0)
     }
     else if(var_method == "Delta"){
-      CIF2_var_0 <- calcDeltaVariance(CIF_time = event2_time_0,
+      CIF2_var_0 <- calcDeltaVariance2(CIF_time = event2_time_0,
                                       CIF_value = CIF2_value_0,
-                                      n.event = n.event2_0,
+                                      n.event1 = n.event2_0,
+                                      n.event2 = n.event1_0,
                                       n.atrisk = s_atrisk_0,
                                       km_time = s_time_0,
                                       km_value = s_surv_0)
@@ -307,24 +345,26 @@ calcCIF_H <- function(
     CIF2_value_1 <- rep(NA, n_2_1)
     cum <- 0
     for(i in 1:n_2_1){
-      index <- sum(as.numeric((s_time_1-event2_time_1[i])<0))
+      index <- sum(s_time_1<event2_time_1[i])
       if(index!=0){
-        cum <- cum + n.event2_1[i]*s_surv_1[index]/s_atrisk_1[index]
+        cum <- cum + n.event2_1[i]*s_surv_1[index]/s_atrisk_1[index+1]
       }
       CIF2_value_1[i] <- cum
     }
     if(var_method == "Aalen"){
-      CIF2_var_1 <- calcAalenVariance(CIF_time = event2_time_1,
+      CIF2_var_1 <- calcAalenVariance2(CIF_time = event2_time_1,
                                       CIF_value = CIF2_value_1,
-                                      n.event = n.event2_1,
+                                      n.event1 = n.event2_1,
+                                      n.event2 = n.event1_1,
                                       n.atrisk = s_atrisk_1,
                                       km_time = s_time_1,
                                       km_value = s_surv_1)
     }
     else if(var_method == "Delta"){
-      CIF2_var_1 <- calcDeltaVariance(CIF_time = event2_time_1,
+      CIF2_var_1 <- calcDeltaVariance2(CIF_time = event2_time_1,
                                       CIF_value = CIF2_value_1,
-                                      n.event = n.event2_1,
+                                      n.event1 = n.event2_1,
+                                      n.event2 = n.event1_1,
                                       n.atrisk = s_atrisk_1,
                                       km_time = s_time_1,
                                       km_value = s_surv_1)
@@ -449,6 +489,80 @@ calcDeltaVariance <- function(
   return(first_term + second_term -2 * third_term)
 }
 
+# 指摘：outputはggplot2が受け取れるようなクラス、変数名に
+# survfitの仕様に合わせるグラフが多い。
+# それにクラス、変数名を寄せるのがいい
+# bloom, tidy
+
+
+calcAalenVariance2 <- function(
+    CIF_time,
+    CIF_value,
+    n.event1,
+    n.event2, # n.event for competing risks is necesary
+    n.atrisk,
+    km_time,
+    km_value
+){
+  n <- length(CIF_time)
+  first_term <- rep(NA, n)
+  second_term <- rep(NA, n)
+  third_term <- rep(NA, n)
+  first_cum <- 0
+  second_cum <- 0
+  third_cum <- 0
+  for(i in 1:n){
+    #index <- min(length(CIF_value)-1, sum(as.numeric((km_time-CIF_time[i])<0))) # index may not be correct since it results in first_term and third_term with zeros
+    index <- sum(km_time<CIF_time[i])
+    if(index!=0){
+      #      first_cum <- first_cum + ((CIF_value[index+1]-CIF_value[i])^2)*n.event[i]/(n.atrisk[i]-1)/(n.atrisk[i]-n.event[i])
+      #      second_cum <- second_cum + (km_value[index]^2)*(n.event[i])*(n.atrisk[i]-n.event[i])/(n.atrisk[i]^2)/(n.atrisk[i]-1)
+      #      third_cum <- third_cum + ((CIF_value[index+1]-CIF_value[i])*km_value[index]*n.event[i]*(n.atrisk[i]-n.event[i])/n.atrisk[i]/(n.atrisk[i]-sum(n.event[1:i]))/(n.atrisk[i]-1))
+      first_cum <- first_cum + ((CIF_value[index+1]-CIF_value[i])^2)*(n.event1[i]+n.event2[i])/(n.atrisk[index+1]-1)/(n.atrisk[index+1]-n.event1[i]-n.event2[i])
+      second_cum <- second_cum + (km_value[index]^2)*n.event1[i]*(n.atrisk[index+1]-n.event1[i])/(n.atrisk[index+1]^2)/(n.atrisk[index+1]-1)
+      third_cum <- third_cum + (CIF_value[index+1]-CIF_value[i])*km_value[index]*n.event1[i]*(n.atrisk[index+1]-n.event1[i])/n.atrisk[index+1]/(n.atrisk[index+1]-n.event1[i]-n.event2[i])/(n.atrisk[index+1]-1)
+    }
+    first_term[i] <- first_cum
+    second_term[i] <- second_cum
+    third_term[i] <- third_cum
+  }
+  return(first_term + second_term -2 * third_term)
+}
+
+calcDeltaVariance2 <- function(
+    CIF_time,
+    CIF_value,
+    n.event1,
+    n.event2, # n.event for competing risks is necesary
+    n.atrisk,
+    km_time,
+    km_value
+){
+  n <- length(CIF_time)
+  first_term <- rep(NA, n)
+  second_term <- rep(NA, n)
+  third_term <- rep(NA, n)
+  first_cum <- 0
+  second_cum <- 0
+  third_cum <- 0
+  for(i in 1:n){
+    #index <- min(length(CIF_value)-1, sum(as.numeric((km_time-CIF_time[i])<0))) # index may not be correct since it results in first_term and third_term with zeros
+    index <- sum(km_time<CIF_time[i])
+    if(index!=0){
+      #      first_cum <- first_cum + ((CIF_value[index+1]-CIF_value[i])^2)*n.event[i]/(n.atrisk[i]-1)/(n.atrisk[i]-n.event[i])
+      #      second_cum <- second_cum + (km_value[index]^2)*(n.event[i])*(n.atrisk[i]-n.event[i])/(n.atrisk[i]^3)
+      #      third_cum <- third_cum + ((CIF_value[index+1]-CIF_value[i])*km_value[index]*n.event[i]/(n.atrisk[i]^3))
+      first_cum <- first_cum + ((CIF_value[index+1]-CIF_value[i])^2)*(n.event1[i]+n.event2[i])/n.atrisk[index+1]/(n.atrisk[index+1]-n.event1[i]-n.event2[i])
+      second_cum <- second_cum + (km_value[index]^2)*(n.event1[i])*(n.atrisk[index+1]-n.event1[i])/(n.atrisk[index+1]^3)
+      third_cum <- third_cum + ((CIF_value[index+1]-CIF_value[i])*km_value[index]*n.event1[i]/(n.atrisk[index+1]^2))
+    }
+    first_term[i] <- first_cum
+    second_term[i] <- second_cum
+    third_term[i] <- third_cum
+  }
+  return(first_term + second_term -2 * third_term)
+}
+
 
 
 
@@ -464,4 +578,4 @@ model3 <- "Event(t,epsilon) ~ age+sex+bmi+hba1c+diabetes_duration+drug_oha+drug_
 model3 <- as.formula(model3)
 
 calcCIF_H(nuisance.model = model3, exposure = 'fruitq1',
-      data = jdcs, devideByExposure = FALSE, drawGraph = TRUE, drawGraphCI = FALSE, var_method = "Delta")
+      data = jdcs, devideByExposure = TRUE, drawGraph = TRUE, drawGraphCI = FALSE, var_method = "Delta")
