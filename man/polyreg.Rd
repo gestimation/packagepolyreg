@@ -87,9 +87,9 @@ polyreg(
 
 \item{prob.bound}{numeric Small threshold for clamping probabilities. Defaults to 1e-5.}
 
-\item{boot.bca}{character Specifies the method of bootstrap confidence intervals (TRUE = BCA method, FALSE = normal appriximation).}
+\item{boot.bca}{character Specifies the method of bootstrap confidence intervals (TRUE = BCA method, FALSE = normal approximation).}
 
-\item{boot.parameter1}{numeric Reprecation for bootstrap confidence intervals when outcome.type==PROPORTIONAL.}
+\item{boot.parameter1}{integer Number of replicatations for bootstrap confidence intervals when outcome.type==PROPORTIONAL.}
 
 \item{boot.parameter2}{numeric Seed used in bootstrap confidence intervals when outcome.type==PROPORTIONAL.}
 

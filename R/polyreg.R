@@ -34,7 +34,9 @@
 #' @importFrom nleqslv nleqslv
 #'
 #' @return A list of results from direct polynomial regression. coefficient and cov are estimated regression coefficients of exposure and covariates and their variance covariance matrix. summary and summary.full meets requirement of msummary function.
-#' @export
+#' @export polyreg
+#' @export CIF_H
+#' @export calculateKaplanMeier
 #'
 #' @examples
 #' data(diabetes.complications)
